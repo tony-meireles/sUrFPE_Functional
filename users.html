@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestão de Usuários sUrFPE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Sora:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="users">
+  <div class="page-shell">
+    <nav class="top-nav">
+      <a class="nav-link" href="index.html">Treinos Criados</a>
+      <a class="nav-link" href="prescricao.html">Criar Treino</a>
+      <a class="nav-link" href="repositorio.html">Repositório</a>
+      <a class="nav-link" href="analytics.html">Analytics</a>
+      <a class="nav-link is-current" href="users.html">Gestão de Usuários</a>
+    </nav>
+
+    <header class="hero analytics-hero-minimal hero-single">
+      <div class="hero-copy">
+        <p class="eyebrow">Funcional Surfe</p>
+        <h1>Gestão de Usuários</h1>
+        <p class="hero-text">Painel do Master para aprovar solicitações, ajustar perfis e manter o controle de acesso do sistema.</p>
+      </div>
+    </header>
+
+    <section class="dashboard-grid analytics-page-grid">
+      <article class="catalog-panel dashboard-wide analytics-panel-minimal" id="userManagementPanel" hidden>
+        <div class="panel-header">
+          <div>
+            <p class="panel-title">Permissões e liberações</p>
+            <p class="panel-subtitle">Aprove cadastros pendentes e revise os níveis dos usuários ativos.</p>
+          </div>
+        </div>
+        <div id="userManagementContent"></div>
+      </article>
+    </section>
+  </div>
+
+  <script src="usage-analytics.js"></script>
+  <script src="auth.js"></script>
+  <script src="data/exercises.js"></script>
+  <script src="dashboard-v2.js"></script>
+</body>
+</html>

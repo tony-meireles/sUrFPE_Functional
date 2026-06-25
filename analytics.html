@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analytics sUrFPE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Sora:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="analytics">
+  <div class="page-shell">
+    <nav class="top-nav">
+      <a class="nav-link" href="index.html">Treinos Criados</a>
+      <a class="nav-link" href="prescricao.html">Criar Treino</a>
+      <a class="nav-link" href="repositorio.html">Repositório</a>
+      <a class="nav-link is-current" href="analytics.html">Analytics</a>
+      <a class="nav-link" href="users.html">Gestão de Usuários</a>
+    </nav>
+
+    <header class="hero analytics-hero-minimal">
+      <div class="hero-copy">
+        <p class="eyebrow">Funcional Surfe</p>
+        <h1>Analytics</h1>
+        <p class="hero-text">Indicadores de uso do sistema, comportamento recente e leitura consolidada do banco e dos treinos criados.</p>
+      </div>
+      <div class="hero-panel analytics-hero-panel">
+        <div class="stat">
+          <span class="stat-label">Treinos criados</span>
+          <strong class="stat-value" id="dashboardSessions">0</strong>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Média exercícios/treino</span>
+          <strong class="stat-value" id="dashboardExerciseAverage">0</strong>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Exercícios no banco</span>
+          <strong class="stat-value" id="dashboardTotal">0</strong>
+        </div>
+      </div>
+    </header>
+
+    <section class="dashboard-grid analytics-page-grid">
+      <article class="catalog-panel dashboard-wide analytics-panel-minimal">
+        <div class="panel-header">
+          <div>
+            <p class="panel-title">Leitura do Sistema</p>
+            <p class="panel-subtitle">Resumo de operação, uso recente, distribuição do banco e tendências de acesso.</p>
+          </div>
+        </div>
+        <div class="analytics-sections" id="dashboardStats"></div>
+      </article>
+    </section>
+
+  </div>
+
+  <script src="usage-analytics.js"></script>
+  <script src="auth.js"></script>
+  <script src="data/exercises.js"></script>
+  <script src="dashboard-v2.js"></script>
+</body>
+</html>

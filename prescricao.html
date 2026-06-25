@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prescrição de Sessão sUrFPE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Sora:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="prescription">
+  <div class="page-shell">
+    <nav class="top-nav">
+      <a class="nav-link" href="index.html">Treinos Criados</a>
+      <a class="nav-link is-current" href="prescricao.html">Criar Treino</a>
+      <a class="nav-link" href="repositorio.html">Repositório</a>
+      <a class="nav-link" href="analytics.html">Analytics</a>
+      <a class="nav-link" href="users.html">Gestão de Usuários</a>
+    </nav>
+
+    <header class="hero session-hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Funcional Surfe</p>
+        <h1>Prescrição de Sessão</h1>
+        <p class="hero-text">Filtre o banco, escolha os exercícios com um clique, organize a ordem e feche a sessão com o tempo de trabalho e recuperação.</p>
+      </div>
+      <div class="hero-panel">
+        <div class="stat">
+          <span class="stat-label">Exercícios na sessão</span>
+          <strong class="stat-value" id="selectedCount">0</strong>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Tempo total</span>
+          <strong class="stat-value" id="totalSessionTime">0 min</strong>
+        </div>
+      </div>
+    </header>
+
+    <section class="session-summary-banner">
+      <div>
+        <p class="summary-label">Programação da sessão</p>
+        <strong class="summary-main" id="sessionHeadline">Nenhum exercício selecionado</strong>
+      </div>
+      <div class="summary-side">
+        <span id="sessionRatio">Trabalho/recuperação: -</span>
+        <span id="sessionTotalLabel">Tempo total: 0 min</span>
+      </div>
+    </section>
+
+    <section class="session-emphasis-banner">
+      <div class="panel-header compact">
+        <p class="panel-title">Ênfases da sessão</p>
+        <span class="panel-subtitle">Resumo automático com base nos exercícios escolhidos.</span>
+      </div>
+      <div class="session-emphasis-grid" id="sessionEmphasisGrid"></div>
+    </section>
+
+    <main class="layout session-layout">
+      <section class="catalog-panel">
+        <div class="panel-header">
+          <div>
+            <p class="panel-title">Banco filtrável</p>
+            <p class="panel-subtitle">Clique em adicionar para levar um exercício para a prescrição.</p>
+          </div>
+          <button class="text-button" id="clearFiltersButton" type="button">Limpar filtros</button>
+        </div>
+
+        <div class="search-wrap">
+          <input id="searchInput" type="search" placeholder="Pesquisar movimento, descrição, tag ou implemento">
+        </div>
+
+        <div class="filter-block">
+          <p>Implemento principal</p>
+          <div class="chip-row" id="implementFilters"></div>
+        </div>
+
+        <div class="filter-block">
+          <p>Ênfase corporal</p>
+          <div class="chip-row" id="scoreFilters"></div>
+        </div>
+
+        <div class="filter-block">
+          <p>Fundamentos do surfe</p>
+          <div class="chip-row" id="foundationFilters"></div>
+        </div>
+
+        <div class="results-meta">
+          <strong id="resultsCount">0 resultados</strong>
+          <span id="resultsSummary">Banco completo</span>
+        </div>
+
+        <div class="card-grid" id="exerciseGrid"></div>
+        <div class="pagination" id="pagination"></div>
+      </section>
+
+      <aside class="editor-panel session-panel">
+        <div class="panel-header">
+          <div>
+            <p class="panel-title">Montagem da sessão</p>
+            <p class="panel-subtitle">Reordene a lista e defina a dose temporal do treino.</p>
+          </div>
+          <button class="text-button" id="clearSelectionButton" type="button">Limpar sessão</button>
+        </div>
+
+        <form id="sessionForm" class="editor-form session-form">
+          <label>
+            <span>Nome da sessão</span>
+            <input id="sessionName" type="text" placeholder="Sessão de força para o surfe">
+          </label>
+
+          <div class="session-form-top">
+            <label>
+              <span>Modo de treino</span>
+              <select id="sessionMode">
+                <option value="intervalado">MODO Intervalado</option>
+                <option value="rot">MODO ROT (Reps On Time)</option>
+              </select>
+            </label>
+
+            <label>
+              <span>Número de séries</span>
+              <input id="seriesCount" type="number" min="1" step="1" value="1">
+            </label>
+          </div>
+
+          <div class="form-split session-timing-grid">
+            <label id="workField">
+              <span id="workLabel">Tempo por exercício</span>
+              <input id="workMinutes" type="number" min="0" step="0.25" placeholder="Ex.: 1.25" value="2">
+            </label>
+            <label id="intensityField">
+              <span>Escala 4PIS</span>
+              <select id="intensity4pis">
+                <option value="0">0</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3" selected>3</option>
+                <option value="4">4</option>
+                <option value="All Out">All Out</option>
+              </select>
+            </label>
+            <label id="restField">
+              <span id="restLabel">Recuperação</span>
+              <input id="restMinutes" type="number" min="0" step="0.25" placeholder="Ex.: 0.5" value="2">
+            </label>
+            <label id="repsField" hidden>
+              <span>Repetições por exercício</span>
+              <input id="repsPerExercise" type="number" min="1" step="1" value="5">
+            </label>
+          </div>
+
+          <p class="hint session-mode-hint" id="modeHint">No modo intervalado, o tempo total considera estímulo + recuperação para cada exercício.</p>
+        </form>
+
+        <section class="detail-panel session-list-panel">
+          <div class="panel-header compact">
+            <div>
+              <p class="panel-title">Lista prescrita</p>
+              <span class="panel-subtitle">A ordem abaixo define a execução.</span>
+            </div>
+            <div class="random-tools">
+              <button class="ghost-button compact-button random-button" id="randomSelectionButton" type="button">Random</button>
+              <div class="random-info">
+                <button class="info-badge" type="button" aria-label="Informações sobre o botão Random">i</button>
+                <div class="random-tooltip" role="tooltip">
+                  O botão <strong>Random</strong> sorteia do banco a quantidade de exercícios informada para acelerar a escolha dos exercícios parcial ou totalmente. Depois do sorteio, a lista precisa ser validada e a ordem ajustada conforme decisão do responsável pela prescrição.
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="selectedList" class="selected-list"></div>
+        </section>
+
+        <section class="detail-panel">
+          <div class="panel-header compact">
+            <p class="panel-title">Diagramação da sessão</p>
+            <span class="panel-subtitle">Visual simples da sessão pronta.</span>
+          </div>
+          <div id="sessionPreview" class="session-preview"></div>
+          <div class="editor-actions">
+            <button class="primary-button" id="saveSessionButton" type="button">Finalizar e gravar sessão</button>
+            <button class="ghost-button" id="exportPdfButton" type="button">Exportar sessão em PDF</button>
+            <button class="ghost-button" id="exportJpegButton" type="button">Exportar sessão em JPEG</button>
+          </div>
+        </section>
+
+      </aside>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="randomModal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="randomModalTitle">
+      <div class="panel-header compact">
+        <div>
+          <p class="panel-title" id="randomModalTitle">Random</p>
+          <span class="panel-subtitle">Defina a quantidade e a ênfase desejada para acelerar a montagem da sessão.</span>
+        </div>
+        <button class="text-button compact-button" id="closeRandomModalButton" type="button">Fechar</button>
+      </div>
+
+      <form class="editor-form" id="randomForm">
+        <label>
+          <span>Quantidade de exercícios</span>
+          <input id="randomExerciseCount" type="number" min="1" step="1" value="4">
+        </label>
+
+        <div class="score-group">
+          <p>Fundamentos do surfe para privilegiar no sorteio</p>
+          <div class="modal-check-grid">
+            <label class="check-card">
+              <input type="checkbox" name="randomFoundation" value="popup">
+              <span>Popup</span>
+            </label>
+            <label class="check-card">
+              <input type="checkbox" name="randomFoundation" value="rowing">
+              <span>Remada</span>
+            </label>
+            <label class="check-card">
+              <input type="checkbox" name="randomFoundation" value="navigation">
+              <span>Navegação</span>
+            </label>
+            <label class="check-card">
+              <input type="checkbox" name="randomFoundation" value="railManeuvers">
+              <span>Manobras de Borda</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="random-modal-note">
+          <span class="info-badge" aria-hidden="true">i</span>
+          <p>Se você selecionar fundamentos, o sorteio usa peso matemático para favorecer exercícios mais alinhados a esses estímulos. A lista gerada continua precisando de validação e ajuste de ordem pelo responsável pela prescrição.</p>
+        </div>
+
+        <div class="editor-actions">
+          <button class="primary-button" id="confirmRandomButton" type="submit">Gerar seleção</button>
+          <button class="ghost-button" id="cancelRandomButton" type="button">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="usage-analytics.js"></script>
+  <script src="auth.js"></script>
+  <script src="data/exercises.js"></script>
+  <script src="prescription.js"></script>
+</body>
+</html>

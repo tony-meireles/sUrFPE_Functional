@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Repositório de Exercícios sUrFPE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Sora:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="repository">
+  <div class="page-shell">
+    <nav class="top-nav">
+      <a class="nav-link" href="index.html">Treinos Criados</a>
+      <a class="nav-link" href="prescricao.html">Criar Treino</a>
+      <a class="nav-link is-current" href="repositorio.html">Repositório</a>
+      <a class="nav-link" href="analytics.html">Analytics</a>
+      <a class="nav-link" href="users.html">Gestão de Usuários</a>
+    </nav>
+
+    <header class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Funcional Surfe</p>
+        <h1>Repositório de Exercícios</h1>
+        <p class="hero-text">Um catálogo local, editável e visual para consultar, filtrar e cadastrar exercícios a partir da planilha original.</p>
+        <div class="hero-actions">
+          <button class="primary-button" id="importLibraryButton" type="button">Importação de biblioteca de exercícios</button>
+          <button class="ghost-button" id="exportButton" type="button">Exportar CSV</button>
+          <button class="ghost-button" id="resetButton" type="button">Restaurar importação original</button>
+        </div>
+        <p class="hint" id="storageStatus">Usando armazenamento local do navegador.</p>
+        <input id="libraryFileInput" type="file" accept=".xlsx,.xls,.csv" hidden>
+      </div>
+      <div class="hero-panel">
+        <div class="stat">
+          <span class="stat-label">Exercícios</span>
+          <strong class="stat-value" id="exerciseCount">0</strong>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Filtros ativos</span>
+          <strong class="stat-value" id="activeFilterCount">0</strong>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Com imagem</span>
+          <strong class="stat-value" id="imageCount">0</strong>
+        </div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="catalog-panel">
+        <div class="panel-header">
+          <div>
+            <p class="panel-title">Busca e filtros</p>
+            <p class="panel-subtitle">Localize por nome, descrição, tags e perfis de movimento.</p>
+          </div>
+          <button class="text-button" id="clearFiltersButton" type="button">Limpar filtros</button>
+        </div>
+
+        <div class="search-wrap">
+          <input id="searchInput" type="search" placeholder="Pesquisar exercício, descrição, tag ou implemento">
+        </div>
+
+        <div class="filter-block">
+          <p>Implemento principal</p>
+          <div class="chip-row" id="implementFilters"></div>
+        </div>
+
+        <div class="filter-block">
+          <p>Ênfase corporal</p>
+          <div class="chip-row" id="scoreFilters"></div>
+        </div>
+
+        <div class="filter-block">
+          <p>Fundamentos do surfe</p>
+          <div class="chip-row" id="foundationFilters"></div>
+        </div>
+
+        <div class="results-meta">
+          <strong id="resultsCount">0 resultados</strong>
+          <span id="resultsSummary">Catálogo completo</span>
+        </div>
+
+        <div class="card-grid" id="exerciseGrid"></div>
+        <div class="pagination" id="pagination"></div>
+      </section>
+
+      <aside class="editor-panel">
+        <div class="panel-header">
+          <div>
+            <p class="panel-title">Cadastrador</p>
+            <p class="panel-subtitle">Edite um exercício existente ou cadastre um novo.</p>
+          </div>
+          <button class="text-button" id="newExerciseButton" type="button">Novo exercício</button>
+        </div>
+
+        <form id="exerciseForm" class="editor-form">
+          <input type="hidden" id="originalId">
+
+          <label>
+            <span>ID</span>
+            <input id="fieldId" type="number" min="1" required>
+          </label>
+
+          <label>
+            <span>Movimento</span>
+            <input id="fieldMovement" type="text" required>
+          </label>
+
+          <label>
+            <span>Descrição</span>
+            <textarea id="fieldDescription" rows="4"></textarea>
+          </label>
+
+          <div class="form-split">
+            <label>
+              <span>Implemento</span>
+              <select id="fieldImplement"></select>
+            </label>
+            <label>
+              <span>Seleção</span>
+              <input id="fieldSelection" type="number" min="0">
+            </label>
+          </div>
+
+          <div class="form-split">
+            <label>
+              <span>Novo implemento</span>
+              <input id="fieldNewImplement" type="text" placeholder="Cadastrar novo implemento">
+            </label>
+            <label class="implement-action">
+              <span>&nbsp;</span>
+              <button class="ghost-button" id="addImplementButton" type="button">Adicionar implemento</button>
+            </label>
+          </div>
+
+          <label>
+            <span>Imagem</span>
+            <input id="fieldImagePath" type="text" placeholder="assets/exercises/exercise-01.png">
+          </label>
+
+          <label>
+            <span>Crédito da imagem</span>
+            <input id="fieldImageAttribution" type="text">
+          </label>
+
+          <div class="score-group">
+            <p>Ênfase corporal</p>
+            <div class="form-grid">
+              <label><span>MMSS</span><input id="fieldUpperBody" type="number" min="0" max="5"></label>
+              <label><span>MMII</span><input id="fieldLowerBody" type="number" min="0" max="5"></label>
+              <label><span>Tronco</span><input id="fieldTrunk" type="number" min="0" max="5"></label>
+              <label><span>Core</span><input id="fieldCore" type="number" min="0" max="5"></label>
+              <label><span>Equilíbrio</span><input id="fieldBalance" type="number" min="0" max="5"></label>
+            </div>
+          </div>
+
+          <div class="score-group">
+            <p>Fundamentos do surfe</p>
+            <div class="form-grid">
+              <label><span>Popup</span><input id="fieldPopup" type="number" min="0" max="5"></label>
+              <label><span>Remada</span><input id="fieldRowing" type="number" min="0" max="5"></label>
+              <label><span>Navegação</span><input id="fieldNavigation" type="number" min="0" max="5"></label>
+              <label><span>Manobras</span><input id="fieldRailManeuvers" type="number" min="0" max="5"></label>
+            </div>
+          </div>
+
+          <div class="editor-actions">
+            <button class="primary-button" type="submit">Salvar exercício</button>
+            <button class="ghost-button" id="deleteButton" type="button">Excluir</button>
+          </div>
+        </form>
+
+        <section class="detail-panel" id="detailPanel">
+          <p class="panel-title">Visualização rápida</p>
+          <div id="detailContent" class="detail-content"></div>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script src="usage-analytics.js"></script>
+  <script src="auth.js"></script>
+  <script src="data/exercises.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
