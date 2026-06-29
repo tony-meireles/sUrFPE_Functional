@@ -62,11 +62,27 @@
     const saved = localStorage.getItem(STORAGE_KEY);
     if (!saved) return structuredClone(repository.exercises || []);
     try {
-      return JSON.parse(saved);
+      return mergeExerciseLibraries(repository.exercises || [], JSON.parse(saved));
     } catch (error) {
       console.warn('Falha ao restaurar base editada.', error);
       return structuredClone(repository.exercises || []);
     }
+  }
+
+  function mergeExerciseLibraries(baseExercises, savedExercises) {
+    const merged = new Map();
+
+    (baseExercises || []).forEach((exercise) => {
+      merged.set(Number(exercise.id), structuredClone(exercise));
+    });
+
+    (savedExercises || []).forEach((exercise) => {
+      const id = Number(exercise?.id);
+      const base = merged.get(id) || {};
+      merged.set(id, { ...structuredClone(base), ...structuredClone(exercise || {}) });
+    });
+
+    return [...merged.values()].sort((a, b) => Number(a.id) - Number(b.id));
   }
 
   function loadSessions() {
@@ -150,7 +166,7 @@
         const body = (emphasis.highlights || []).filter((item) => Number(item.total || 0) > 0).slice(0, 2);
         const foundations = (emphasis.foundationHighlights || []).filter((item) => Number(item.total || 0) > 0).slice(0, 2);
         const implements = (emphasis.implementHighlights || []).filter((item) => Number(item.total || 0) > 0).slice(0, 3);
-        const modeLabel = session.mode === 'rot' ? 'ROT' : 'Intervalado';
+        const modeLabel = getModeLabel(session.mode);
         const thumbnailsHtml = buildSessionThumbnails(session);
 
         return `
@@ -164,7 +180,7 @@
                 <div class="training-card-pills">
                   <span class="pill">${modeLabel}</span>
                   <span class="pill">${Number(session.exercises?.length || 0)} exercicios</span>
-                  <span class="pill">${formatMinutes(session.totalMinutes || 0)}</span>
+                  <span class="pill">${formatSessionTotal(session)}</span>
                 </div>
               </div>
               <div class="training-card-grid">
@@ -240,10 +256,27 @@
     const exerciseCount = Number(session.exercises?.length || 0);
     const seriesCount = Number(session.seriesCount || 1);
     const intensity4pis = String(session.intensity4pis || '0');
-    if (session.mode === 'rot') {
-      return `${seriesCount} Series x (${exerciseCount} exercicios com ${session.repsPerExercise || 0} reps - ${format4PisLabel(intensity4pis)} / ${formatMinutes(session.workMinutes || 0)})`;
+    if (session.mode === 'mobility_reps') {
+      return `${getModeLabel(session.mode)} | ${seriesCount} series x (${exerciseCount} movimentos com ${session.repsPerExercise || 0} reps - ${format4PisLabel(intensity4pis)})`;
     }
-    return `${seriesCount} series x [${exerciseCount} exercicios x (${formatMinutes(session.workMinutes || 0)} - ${format4PisLabel(intensity4pis)} / ${formatMinutes(session.restMinutes || 0)})]`;
+    if (session.mode === 'mobility_time') {
+      return `${getModeLabel(session.mode)} | ${seriesCount} series x (${exerciseCount} movimentos com ${formatMinutes(session.workMinutes || 0)} - ${format4PisLabel(intensity4pis)})`;
+    }
+    if (session.mode === 'rot') {
+      return `${getModeLabel(session.mode)} | ${seriesCount} series x (${exerciseCount} exercicios com ${session.repsPerExercise || 0} reps - ${format4PisLabel(intensity4pis)} / ${formatMinutes(session.workMinutes || 0)})`;
+    }
+    return `${getModeLabel(session.mode)} | ${seriesCount} series x [${exerciseCount} exercicios x (${formatMinutes(session.workMinutes || 0)} - ${format4PisLabel(intensity4pis)} / ${formatMinutes(session.restMinutes || 0)})]`;
+  }
+
+  function getModeLabel(mode) {
+    if (mode === 'rot') return 'ROT (Reps On Time)';
+    if (mode === 'mobility_reps') return 'MOBILITY REPs (n Reps por movimento)';
+    if (mode === 'mobility_time') return 'MOBILITY TIME (n s por movimento)';
+    return 'Intervalado';
+  }
+
+  function formatSessionTotal(session) {
+    return session?.mode === 'mobility_reps' ? 'N/A' : formatMinutes(session?.totalMinutes || 0);
   }
 
   function format4PisLabel(value) {
@@ -814,8 +847,8 @@
             <img class="pdf-logo" src="${escapeHtml(logoUrl)}" alt="Logo sUrFPE Tech">
           </div>
           <div class="pdf-meta">
-            <article class="pdf-meta-card"><span>Modo</span><strong>${escapeHtml(session.mode === 'rot' ? 'ROT' : 'Intervalado')}</strong></article>
-            <article class="pdf-meta-card"><span>Tempo total</span><strong>${escapeHtml(formatMinutes(session.totalMinutes || 0))}</strong></article>
+            <article class="pdf-meta-card"><span>Modo</span><strong>${escapeHtml(getModeLabel(session.mode))}</strong></article>
+            <article class="pdf-meta-card"><span>Tempo total</span><strong>${escapeHtml(formatSessionTotal(session))}</strong></article>
             <article class="pdf-meta-card"><span>${escapeHtml(thirdMetaTitle)}</span><strong>${escapeHtml(thirdMetaValue)}</strong></article>
           </div>
         </header>

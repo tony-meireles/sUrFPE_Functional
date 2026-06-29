@@ -6,6 +6,15 @@
   const page = document.body?.dataset.page || '';
   const EMERGENCY_MASTER_IDENTIFIER = 'Master@';
   const EMERGENCY_MASTER_PASSWORD = 'Master@';
+  const IS_LOCAL_ENVIRONMENT = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname) || window.location.protocol === 'file:';
+  const PROFILE_PATCHES = {
+    '00558421784': {
+      name: 'Tony Meireles dos Santos',
+      cpf: '00558421784',
+      cref: 'PE-022015',
+      crefType: 'professional'
+    }
+  };
 
   const ROLE_LABELS = {
     basic: 'Basico',
@@ -28,6 +37,7 @@
     logout,
     login,
     registerUser,
+    updateOwnProfile,
     createInitialMaster,
     approveUser,
     updateUserRole,
@@ -53,7 +63,13 @@
     try {
       const raw = localStorage.getItem(USERS_KEY);
       const parsed = raw ? JSON.parse(raw) : [];
-      return Array.isArray(parsed) ? parsed : [];
+      if (!Array.isArray(parsed)) return [];
+
+      const { users, changed } = applyProfilePatches(parsed);
+      if (changed) {
+        saveUsers(users);
+      }
+      return users;
     } catch (error) {
       console.warn('Falha ao restaurar usuarios.', error);
       return [];
@@ -62,6 +78,42 @@
 
   function saveUsers(users) {
     localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  }
+
+  function applyProfilePatches(users) {
+    let changed = false;
+    const normalizedUsers = users.map((user) => {
+      const cpf = normalizeCpf(user?.cpf);
+      const patch = PROFILE_PATCHES[cpf];
+      if (!patch) return user;
+      if (user?.manualProfileUpdateAt) return user;
+
+      const nextUser = {
+        ...user,
+        name: sanitizeText(user.name || patch.name),
+        cpf,
+        cref: sanitizeText(user.cref || patch.cref),
+        crefType: user.crefType || patch.crefType,
+        updatedAt: new Date().toISOString()
+      };
+
+      if (
+        nextUser.name === user.name
+        && nextUser.cpf === user.cpf
+        && nextUser.cref === user.cref
+        && nextUser.crefType === user.crefType
+      ) {
+        return user;
+      }
+
+      changed = true;
+      return nextUser;
+    });
+
+    return {
+      users: normalizedUsers,
+      changed
+    };
   }
 
   function getUsers() {
@@ -148,13 +200,17 @@
     return btoa(unescape(encodeURIComponent(normalized)));
   }
 
-  function validateRegistrationData(data) {
+  function validateBaseUserData(data) {
     if (!sanitizeText(data.name)) throw new Error('Informe o nome completo.');
     if (normalizeCpf(data.cpf).length !== 11) throw new Error('Informe um CPF valido com 11 digitos.');
     if (!normalizeEmail(data.email).includes('@')) throw new Error('Informe um email valido.');
+    if (!['student', 'professional'].includes(data.crefType)) throw new Error('Selecione o tipo de registro.');
+  }
+
+  function validateRegistrationData(data) {
+    validateBaseUserData(data);
     if (!sanitizeText(data.password) || String(data.password).length < 6) throw new Error('A senha precisa ter pelo menos 6 caracteres.');
     if (sanitizeText(data.password) !== sanitizeText(data.passwordConfirm)) throw new Error('A confirmacao da senha nao confere.');
-    if (!['student', 'professional'].includes(data.crefType)) throw new Error('Selecione o tipo de registro.');
   }
 
   function ensureUniqueUser(users, email, cpf, ignoreUserId) {
@@ -231,8 +287,47 @@
     return user;
   }
 
+  function updateOwnProfile(currentUser, data) {
+    if (!isApprovedUser(currentUser)) throw new Error('Sessao invalida para editar cadastro.');
+
+    validateBaseUserData(data);
+
+    const users = loadUsers();
+    const email = normalizeEmail(data.email);
+    const cpf = normalizeCpf(data.cpf);
+    ensureUniqueUser(users, email, cpf, currentUser.id);
+
+    const now = new Date().toISOString();
+    let updatedUser = null;
+    const updatedUsers = users.map((user) => {
+      if (user.id !== currentUser.id) return user;
+
+      updatedUser = {
+        ...user,
+        name: sanitizeText(data.name),
+        cpf,
+        email,
+        cref: sanitizeText(data.cref),
+        crefType: data.crefType,
+        updatedAt: now,
+        manualProfileUpdateAt: now
+      };
+      return updatedUser;
+    });
+
+    if (!updatedUser) throw new Error('Usuario nao encontrado para atualizacao.');
+
+    saveUsers(updatedUsers);
+    usage?.trackEvent?.('profile_updated', { role: updatedUser.role || 'unknown' });
+    return updatedUser;
+  }
+
   async function login(identifier, password) {
-    if (String(identifier || '').trim() === EMERGENCY_MASTER_IDENTIFIER && String(password || '') === EMERGENCY_MASTER_PASSWORD) {
+    if (
+      IS_LOCAL_ENVIRONMENT
+      && String(identifier || '').trim() === EMERGENCY_MASTER_IDENTIFIER
+      && String(password || '') === EMERGENCY_MASTER_PASSWORD
+    ) {
       return loginWithEmergencyMaster();
     }
 
@@ -431,11 +526,16 @@
     const utility = document.createElement('div');
     utility.className = 'nav-utility';
     utility.innerHTML = `
-      <span class="nav-user-badge">${escapeHtml(user.name)} · ${escapeHtml(ROLE_LABELS[user.role] || 'Usuario')}</span>
+      <div class="nav-user-badge">
+        <span class="nav-user-label">${escapeHtml(user.name)} · ${escapeHtml(ROLE_LABELS[user.role] || 'Usuario')}</span>
+        <button class="text-button nav-user-action" type="button" id="editProfileButton">Editar cadastro</button>
+      </div>
       <button class="ghost-button compact-button" type="button" id="logoutButton">Sair</button>
     `;
     nav.appendChild(utility);
 
+    ensureProfileEditor();
+    utility.querySelector('#editProfileButton')?.addEventListener('click', openProfileEditor);
     utility.querySelector('#logoutButton')?.addEventListener('click', logout);
   }
 
@@ -548,33 +648,35 @@
 
   function renderUserFields(options) {
     const includeRole = Boolean(options?.includeRole);
+    const prefix = options?.prefix || (includeRole ? 'register' : 'master');
+    const values = options?.values || {};
     return `
       <div class="form-split">
         <label>
           <span>Nome completo</span>
-          <input id="${includeRole ? 'registerName' : 'masterName'}" type="text" required>
+          <input id="${prefix}Name" type="text" value="${escapeHtml(values.name || '')}" required>
         </label>
         <label>
           <span>CPF</span>
-          <input id="${includeRole ? 'registerCpf' : 'masterCpf'}" type="text" inputmode="numeric" required>
+          <input id="${prefix}Cpf" type="text" inputmode="numeric" value="${escapeHtml(values.cpf || '')}" required>
         </label>
       </div>
       <div class="form-split">
         <label>
           <span>Email</span>
-          <input id="${includeRole ? 'registerEmail' : 'masterEmail'}" type="email" required>
+          <input id="${prefix}Email" type="email" value="${escapeHtml(values.email || '')}" required>
         </label>
         <label>
           <span>CREF ou matrícula</span>
-          <input id="${includeRole ? 'registerCref' : 'masterCref'}" type="text" placeholder="Profissional ou estudante">
+          <input id="${prefix}Cref" type="text" value="${escapeHtml(values.cref || '')}" placeholder="Profissional ou estudante">
         </label>
       </div>
       <div class="form-split">
         <label>
           <span>Tipo de registro</span>
-          <select id="${includeRole ? 'registerCrefType' : 'masterCrefType'}">
-            <option value="professional">Profissional</option>
-            <option value="student">Estudante</option>
+          <select id="${prefix}CrefType">
+            <option value="professional"${String(values.crefType || 'professional') === 'professional' ? ' selected' : ''}>Profissional</option>
+            <option value="student"${String(values.crefType || '') === 'student' ? ' selected' : ''}>Estudante</option>
           </select>
         </label>
         ${includeRole ? `
@@ -661,8 +763,111 @@
 
   }
 
+  function ensureProfileEditor() {
+    if (document.getElementById('profileEditorModal')) return;
+
+    const modal = document.createElement('div');
+    modal.className = 'modal-backdrop';
+    modal.id = 'profileEditorModal';
+    modal.hidden = true;
+    modal.innerHTML = `
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="profileEditorTitle">
+        <div class="panel-header compact">
+          <div>
+            <p class="panel-title" id="profileEditorTitle">Editar cadastro</p>
+            <span class="panel-subtitle">Atualize seus dados de identificação e registro profissional.</span>
+          </div>
+          <button class="ghost-button compact-button" type="button" data-close-profile-editor>Fechar</button>
+        </div>
+        <form class="editor-form" id="profileEditorForm">
+          ${renderUserFields({ prefix: 'profileEdit', values: getCurrentUser() || {} })}
+          <div class="hero-actions">
+            <button class="primary-button" type="submit">Salvar cadastro</button>
+            <button class="ghost-button" type="button" data-close-profile-editor>Cancelar</button>
+          </div>
+          <p class="auth-feedback" id="profileEditorFeedback"></p>
+        </form>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    modal.addEventListener('click', (event) => {
+      if (event.target === modal) closeProfileEditor();
+    });
+
+    modal.querySelectorAll('[data-close-profile-editor]').forEach((button) => {
+      button.addEventListener('click', closeProfileEditor);
+    });
+
+    modal.querySelector('#profileEditorForm')?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const feedback = document.getElementById('profileEditorFeedback');
+      setFeedback(feedback, '');
+
+      try {
+        const updatedUser = updateOwnProfile(getCurrentUser(), {
+          name: valueOf('profileEditName'),
+          cpf: valueOf('profileEditCpf'),
+          email: valueOf('profileEditEmail'),
+          cref: valueOf('profileEditCref'),
+          crefType: valueOf('profileEditCrefType')
+        });
+        syncProfileEditorForm(updatedUser);
+        refreshNavigationBadge(updatedUser);
+        setFeedback(feedback, 'Cadastro atualizado com sucesso. Recarregando...');
+        window.setTimeout(() => window.location.reload(), 450);
+      } catch (error) {
+        setFeedback(feedback, error.message || 'Nao foi possivel atualizar o cadastro.');
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && !modal.hidden) {
+        closeProfileEditor();
+      }
+    });
+  }
+
+  function openProfileEditor() {
+    const modal = document.getElementById('profileEditorModal');
+    const user = getCurrentUser();
+    if (!modal || !user) return;
+
+    syncProfileEditorForm(user);
+    setFeedback(document.getElementById('profileEditorFeedback'), '');
+    modal.hidden = false;
+  }
+
+  function closeProfileEditor() {
+    const modal = document.getElementById('profileEditorModal');
+    if (!modal) return;
+    modal.hidden = true;
+  }
+
+  function syncProfileEditorForm(user) {
+    if (!user) return;
+    setValue('profileEditName', user.name);
+    setValue('profileEditCpf', user.cpf);
+    setValue('profileEditEmail', user.email);
+    setValue('profileEditCref', user.cref);
+    setValue('profileEditCrefType', user.crefType || 'professional');
+  }
+
+  function refreshNavigationBadge(user) {
+    const badge = document.querySelector('.nav-user-label');
+    if (!badge || !user) return;
+    badge.textContent = `${user.name} · ${ROLE_LABELS[user.role] || 'Usuario'}`;
+  }
+
   function valueOf(id) {
     return document.getElementById(id)?.value || '';
+  }
+
+  function setValue(id, value) {
+    const element = document.getElementById(id);
+    if (!element) return;
+    element.value = value || '';
   }
 
   function setFeedback(element, message) {

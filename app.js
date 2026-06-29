@@ -17,6 +17,16 @@
       rowing: 'Remada',
       navigation: 'Navegação',
       railManeuvers: 'Manobras de Borda'
+    },
+    sportValenceKeys: {
+      strengthEndurance: 'Força Resistente ou Pura',
+      explosiveStrength: 'Força Explosiva',
+      mobility: 'Mobilidade',
+      balance: 'Equilíbrio',
+      landing: 'Landing',
+      aerobic: 'Aeróbio',
+      speed: 'Velocidade',
+      agility: 'Agilidade'
     }
   };
 
@@ -27,6 +37,7 @@
     implementFilters: new Set(),
     scoreFilters: new Set(),
     foundationFilters: new Set(),
+    sportValenceFilters: new Set(),
     currentPage: 1,
     implementOptions: [],
     lastImportSummary: ''
@@ -46,6 +57,7 @@
     implementFilters: document.getElementById('implementFilters'),
     scoreFilters: document.getElementById('scoreFilters'),
     foundationFilters: document.getElementById('foundationFilters'),
+    sportValenceFilters: document.getElementById('sportValenceFilters'),
     clearFiltersButton: document.getElementById('clearFiltersButton'),
     newExerciseButton: document.getElementById('newExerciseButton'),
     exportButton: document.getElementById('exportButton'),
@@ -68,11 +80,11 @@
     fieldLowerBody: document.getElementById('fieldLowerBody'),
     fieldTrunk: document.getElementById('fieldTrunk'),
     fieldCore: document.getElementById('fieldCore'),
-    fieldBalance: document.getElementById('fieldBalance'),
     fieldPopup: document.getElementById('fieldPopup'),
     fieldRowing: document.getElementById('fieldRowing'),
     fieldNavigation: document.getElementById('fieldNavigation'),
-    fieldRailManeuvers: document.getElementById('fieldRailManeuvers')
+    fieldRailManeuvers: document.getElementById('fieldRailManeuvers'),
+    sportValenceFieldset: document.getElementById('sportValenceFieldset')
   };
 
   bindEvents();
@@ -89,11 +101,27 @@
     }
 
     try {
-      return JSON.parse(saved).map(normalizeExerciseData);
+      return mergeExerciseLibraries(repository.exercises || [], JSON.parse(saved)).map(normalizeExerciseData);
     } catch (error) {
       console.warn('Falha ao restaurar localStorage, usando importação original.', error);
       return (repository.exercises || []).map(normalizeExerciseData);
     }
+  }
+
+  function mergeExerciseLibraries(baseExercises, savedExercises) {
+    const merged = new Map();
+
+    (baseExercises || []).forEach((exercise) => {
+      merged.set(Number(exercise.id), structuredClone(exercise));
+    });
+
+    (savedExercises || []).forEach((exercise) => {
+      const id = Number(exercise?.id);
+      const base = merged.get(id) || {};
+      merged.set(id, { ...structuredClone(base), ...structuredClone(exercise || {}) });
+    });
+
+    return [...merged.values()].sort((a, b) => Number(a.id) - Number(b.id));
   }
 
   function bindEvents() {
@@ -108,6 +136,7 @@
       state.implementFilters.clear();
       state.scoreFilters.clear();
       state.foundationFilters.clear();
+      state.sportValenceFilters.clear();
       elements.searchInput.value = '';
       renderFilterControls();
       render();
@@ -136,7 +165,9 @@
     renderChips(elements.implementFilters, state.implementOptions, state.implementFilters);
     renderChips(elements.scoreFilters, Object.keys(labels.scoreKeys), state.scoreFilters, labels.scoreKeys);
     renderChips(elements.foundationFilters, Object.keys(labels.foundationKeys), state.foundationFilters, labels.foundationKeys);
+    renderChips(elements.sportValenceFilters, Object.keys(labels.sportValenceKeys), state.sportValenceFilters, labels.sportValenceKeys);
     renderImplementSelect();
+    renderSportValenceFieldset();
   }
 
   function renderChips(container, options, activeSet, dictionary) {
@@ -190,6 +221,12 @@
           if (!matchesFoundation) return false;
         }
 
+        if (state.sportValenceFilters.size > 0) {
+          const valences = normalizeSportValences(exercise.sportValences);
+          const matchesValence = [...state.sportValenceFilters].every((key) => valences.includes(key));
+          if (!matchesValence) return false;
+        }
+
         return true;
       })
       .sort((a, b) => Number(a.id) - Number(b.id));
@@ -210,7 +247,7 @@
 
     elements.exerciseCount.textContent = String(state.exercises.length);
     elements.activeFilterCount.textContent = String(
-      state.implementFilters.size + state.scoreFilters.size + state.foundationFilters.size + (state.search ? 1 : 0)
+      state.implementFilters.size + state.scoreFilters.size + state.foundationFilters.size + state.sportValenceFilters.size + (state.search ? 1 : 0)
     );
     elements.imageCount.textContent = String(state.exercises.filter((exercise) => exercise.image?.path).length);
     elements.resultsCount.textContent = `${filtered.length} resultado${filtered.length === 1 ? '' : 's'}`;
@@ -299,6 +336,10 @@
         <p class="panel-title">Fundamentos do surfe</p>
         <ul class="metric-list">${renderMetricList(exercise.foundations, labels.foundationKeys)}</ul>
       </div>
+      <div>
+        <p class="panel-title">Valência Esportiva</p>
+        <div class="card-meta">${normalizeSportValences(exercise.sportValences).map((key) => `<span class="pill">${escapeHtml(labels.sportValenceKeys[key])}</span>`).join('')}</div>
+      </div>
       ${exercise.image?.attribution ? `<p class="credit">Crédito da imagem: ${escapeHtml(exercise.image.attribution)}</p>` : ''}
     `;
   }
@@ -328,11 +369,11 @@
     elements.fieldLowerBody.value = exercise?.scores?.lowerBody ?? '';
     elements.fieldTrunk.value = exercise?.scores?.trunk ?? '';
     elements.fieldCore.value = exercise?.scores?.core ?? '';
-    elements.fieldBalance.value = exercise?.scores?.balance ?? '';
     elements.fieldPopup.value = exercise?.foundations?.popup ?? '';
     elements.fieldRowing.value = exercise?.foundations?.rowing ?? '';
     elements.fieldNavigation.value = exercise?.foundations?.navigation ?? '';
     elements.fieldRailManeuvers.value = exercise?.foundations?.railManeuvers ?? '';
+    setSelectedSportValences(normalizeSportValences(exercise?.sportValences));
   }
 
   function createEmptyExercise() {
@@ -343,8 +384,9 @@
       implement: '',
       selection: '',
       image: { path: '', attribution: '' },
-      scores: { upperBody: '', lowerBody: '', trunk: '', core: '', balance: '' },
-      foundations: { popup: '', rowing: '', navigation: '', railManeuvers: '' }
+      scores: { upperBody: '', lowerBody: '', trunk: '', core: '' },
+      foundations: { popup: '', rowing: '', navigation: '', railManeuvers: '' },
+      sportValences: ['strengthEndurance']
     };
   }
 
@@ -403,7 +445,7 @@
         lowerBody: numericOrZero(elements.fieldLowerBody.value),
         trunk: numericOrZero(elements.fieldTrunk.value),
         core: numericOrZero(elements.fieldCore.value),
-        balance: numericOrZero(elements.fieldBalance.value)
+        balance: 0
       },
       foundations: {
         popup: numericOrZero(elements.fieldPopup.value),
@@ -415,6 +457,7 @@
         path: elements.fieldImagePath.value.trim(),
         attribution: elements.fieldImageAttribution.value.trim()
       },
+      sportValences: getSelectedSportValences(),
       source: {
         workbook: repository.meta?.sourceWorkbook || 'local',
         sheet: 'Manual',
@@ -433,6 +476,9 @@
     });
     Object.entries(labels.foundationKeys).forEach(([key, label]) => {
       if (Number(exercise.foundations?.[key] || 0) > 0) tags.push(label);
+    });
+    normalizeSportValences(exercise.sportValences).forEach((key) => {
+      tags.push(labels.sportValenceKeys[key]);
     });
     return tags;
   }
@@ -455,8 +501,26 @@
       railManeuvers: numericOrZero(normalized.foundations?.railManeuvers)
     };
 
+    normalized.sportValences = deriveSportValences(normalized);
+
     normalized.tags = buildTags(normalized);
     return normalized;
+  }
+
+  function deriveSportValences(exercise) {
+    const valences = normalizeSportValences(exercise?.sportValences);
+    if (!shouldClassifyAsMobility(exercise)) return valences;
+
+    const withoutDefaultStrength = valences.filter((value) => value !== 'strengthEndurance');
+    return withoutDefaultStrength.includes('mobility')
+      ? withoutDefaultStrength
+      : [...withoutDefaultStrength, 'mobility'];
+  }
+
+  function shouldClassifyAsMobility(exercise) {
+    const sourceSheet = normalizeText(exercise?.source?.sheet);
+    const tags = Array.isArray(exercise?.tags) ? exercise.tags.map((tag) => normalizeText(tag)) : [];
+    return sourceSheet.includes('mobilidade') || tags.includes('mobilidade');
   }
 
   function numericOrZero(value) {
@@ -535,7 +599,7 @@
     const header = [
       'Selecao', 'Id', 'Movimento', 'Execucao', 'Kettlebell', 'Halter', 'Elastic Band', 'Bola Suica',
       'MMSS', 'MMII', 'Tronco', 'Core', 'Equilibrio', 'Popup', 'Remada', 'Navegacao',
-      'Manobras de Borda', 'Descricao', 'Implemento', 'Aleatorio'
+      'Manobras de Borda', 'Valencia Esportiva', 'Descricao', 'Implemento', 'Aleatorio'
     ];
 
     const rows = ordered.map((exercise) => ([
@@ -556,6 +620,7 @@
       exercise.foundations?.rowing ?? '',
       exercise.foundations?.navigation ?? '',
       exercise.foundations?.railManeuvers ?? '',
+      normalizeSportValences(exercise.sportValences).map((key) => labels.sportValenceKeys[key]).join('|'),
       exercise.description ?? '',
       exercise.implement ?? '',
       exercise.randomWeight ?? ''
@@ -579,12 +644,13 @@
     if (!confirm('Restaurar a importação original e apagar as edições locais do navegador?')) return;
 
     localStorage.removeItem(STORAGE_KEY);
-    state.exercises = structuredClone(repository.exercises || []);
+    state.exercises = (repository.exercises || []).map(normalizeExerciseData);
     state.selectedId = state.exercises[0]?.id ?? null;
     state.search = '';
     state.implementFilters.clear();
     state.scoreFilters.clear();
     state.foundationFilters.clear();
+    state.sportValenceFilters.clear();
     state.currentPage = 1;
     state.lastImportSummary = '';
     elements.searchInput.value = '';
@@ -693,7 +759,8 @@
         workbook: sourceName,
         sheet: 'Importado',
         row: null
-      }
+      },
+      sportValences: normalizeSportValences(parseSportValenceInput(get('Valencia Esportiva', 'Valência Esportiva', 'sportValences')))
     };
 
     exercise.tags = buildTags(exercise);
@@ -715,5 +782,77 @@
       .replace(/[\u0300-\u036f]/g, '')
       .trim()
       .toLowerCase();
+  }
+
+  function renderSportValenceFieldset() {
+    if (!elements.sportValenceFieldset) return;
+    const selectedValues = new Set(getSelectedSportValences());
+    elements.sportValenceFieldset.innerHTML = Object.entries(labels.sportValenceKeys)
+      .map(([key, label]) => `
+        <label class="check-card">
+          <input type="checkbox" value="${escapeHtml(key)}" ${selectedValues.has(key) ? 'checked' : ''}>
+          <span>${escapeHtml(label)}</span>
+        </label>
+      `)
+      .join('');
+  }
+
+  function getSelectedSportValences() {
+    return normalizeSportValences(
+      [...(elements.sportValenceFieldset?.querySelectorAll('input[type="checkbox"]:checked') || [])].map((input) => input.value)
+    );
+  }
+
+  function setSelectedSportValences(values) {
+    if (!elements.sportValenceFieldset) return;
+    const selectedValues = new Set(normalizeSportValences(values));
+    elements.sportValenceFieldset.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+      input.checked = selectedValues.has(input.value);
+    });
+  }
+
+  function normalizeSportValences(values) {
+    const items = Array.isArray(values)
+      ? values
+      : parseSportValenceInput(values);
+
+    const normalized = items
+      .map((value) => normalizeSportValenceKey(value))
+      .filter(Boolean);
+
+    return normalized.length ? [...new Set(normalized)] : ['strengthEndurance'];
+  }
+
+  function parseSportValenceInput(value) {
+    if (Array.isArray(value)) return value;
+    return String(value || '')
+      .split(/[|,;/]+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  function normalizeSportValenceKey(value) {
+    const normalized = normalizeText(value);
+    const aliases = {
+      strengthendurance: 'strengthEndurance',
+      forcaresistenteoupura: 'strengthEndurance',
+      forcaresistente: 'strengthEndurance',
+      forcapura: 'strengthEndurance',
+      forcaspura: 'strengthEndurance',
+      explosivestrength: 'explosiveStrength',
+      forcaexplosiva: 'explosiveStrength',
+      mobility: 'mobility',
+      mobilidade: 'mobility',
+      balance: 'balance',
+      equilibrio: 'balance',
+      landing: 'landing',
+      aerobio: 'aerobic',
+      aerobic: 'aerobic',
+      velocidade: 'speed',
+      speed: 'speed',
+      agilidade: 'agility',
+      agility: 'agility'
+    };
+    return aliases[normalized] || (labels.sportValenceKeys[normalized] ? normalized : '');
   }
 })();

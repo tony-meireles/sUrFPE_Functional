@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Auditoria da Base de Mobilidade</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4efe7;
+      --panel: #fffaf3;
+      --line: #d9cdbf;
+      --text: #2d241c;
+      --muted: #6f6255;
+      --accent: #0f766e;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    main {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 32px 24px 48px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 32px;
+    }
+
+    p {
+      margin: 0 0 12px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .summary {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin: 24px 0;
+    }
+
+    .card {
+      min-width: 180px;
+      padding: 16px 18px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--panel);
+    }
+
+    .card strong {
+      display: block;
+      font-size: 28px;
+      color: var(--accent);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: var(--panel);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.05);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 1450px;
+    }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #f8f1e8;
+    }
+
+    th,
+    td {
+      padding: 12px 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: center;
+      vertical-align: middle;
+      font-size: 14px;
+    }
+
+    th.left,
+    td.left {
+      text-align: left;
+    }
+
+    tbody tr:hover {
+      background: rgba(15, 118, 110, 0.05);
+    }
+
+    img.thumb {
+      width: 140px;
+      height: 90px;
+      object-fit: cover;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(15, 118, 110, 0.1);
+      color: var(--accent);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Auditoria da Base de Mobilidade</h1>
+    <p>Relatório da base consolidada no seed do sistema (`data/exercises.js`).</p>
+    <p>Escopo auditado: exercícios <strong>27 a 69</strong>, todos classificados com valência esportiva padrão <strong>mobility</strong>.</p>
+
+    <section class="summary">
+      <div class="card">
+        <span>Total auditado</span>
+        <strong>43</strong>
+      </div>
+      <div class="card">
+        <span>Valência esportiva</span>
+        <strong>mobility</strong>
+      </div>
+      <div class="card">
+        <span>Faixa de IDs</span>
+        <strong>27-69</strong>
+      </div>
+    </section>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Imagem</th>
+            <th class="left">Exercício</th>
+            <th>Valência</th>
+            <th>Popup</th>
+            <th>Remada</th>
+            <th>Navegação</th>
+            <th>Manobras</th>
+            <th>MMSS</th>
+            <th>MMII</th>
+            <th>Tronco</th>
+            <th>Core</th>
+            <th>Equilíbrio</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>27</td><td><img class="thumb" src="../assets/exercises/exercise-27.png" alt="Rotação lombar supina" /></td><td class="left">Rotação lombar supina</td><td><span class="pill">mobility</span></td><td>0</td><td>0</td><td>1</td><td>1</td><td>0</td><td>1</td><td>2</td><td>1</td><td>0</td></tr>
+          <tr><td>28</td><td><img class="thumb" src="../assets/exercises/exercise-28.png" alt="Flexão de tronco em pé" /></td><td class="left">Flexão de tronco em pé</td><td><span class="pill">mobility</span></td><td>0</td><td>0</td><td>0</td><td>1</td><td>0</td><td>2</td><td>2</td><td>1</td><td>1</td></tr>
+          <tr><td>29</td><td><img class="thumb" src="../assets/exercises/exercise-29.png" alt="Mobilidade de tornozelo em passada" /></td><td class="left">Mobilidade de tornozelo em passada</td><td><span class="pill">mobility</span></td><td>1</td><td>0</td><td>0</td><td>1</td><td>0</td><td>2</td><td>1</td><td>1</td><td>1</td></tr>
+          <tr><td>30</td><td><img class="thumb" src="../assets/exercises/exercise-30.png" alt="Alongamento de quadríceps em pé" /></td><td class="left">Alongamento de quadríceps em pé</td><td><span class="pill">mobility</span></td><td>1</td><td>0</td><td>0</td><td>1</td><td>0</td><td>2</td><td>0</td><td>1</td><td>2</td></tr>
+          <tr><td>31</td><td><img class="thumb" src="../assets/exercises/exercise-31.png" alt="Senta nos calcanhares" /></td><td class="left">Senta nos calcanhares</td><td><span class="pill">mobility</span></td><td>1</td><td>0</td><td>0</td><td>1</td><td>0</td><td>2</td><td>1</td><td>0</td><td>0</td></tr>
+          <tr><td>32</td><td><img class="thumb" src="../assets/exercises/exercise-32.png" alt="Alongamento de quadríceps em prona" /></td><td class="left">Alongamento de quadríceps em prona</td><td><span class="pill">mobility</span></td><td>1</td><td>0</td><td>0</td><td>1</td><td>0</td><td>2</td><td>0</td><td>0</td><td>0</td></tr>
+          <tr><td>33</td><td><img class="thumb" src="../assets/exercises/exercise-33.png" alt="Inclinação posterior ajoelhado" /></td><td class="left">Inclinação posterior ajoelhado</td><td><span class="pill">mobility</span></td><td>1</td><td>0</td><td>1</td><td>1</td><td>0</td><td>2</td><td>1</td><td>1</td><td>1</td></tr>
+          <tr><td>34</td><td><img class="thumb" src="../assets/exercises/exercise-34.png" alt="Flexão e extensão de tornozelos sentado" /></td><td class="left">Flexão e extensão de tornozelos sentado</td><td><span class="pill">mobility</span></td><td>1</td><td>0</td><td>0</td><td>1</td><td>0</td><td>1</td><td>0</td><td>0</td><td>0</td></tr>
+          <tr><td>35</td><td><img class="thumb" src="../assets/exercises/exercise-35.png" alt="Elevação de panturrilhas" /></td><td class="left">Elevação de panturrilhas</td><td><span class="pill">mobility</span></td><td>1</td><td>0</td><td>0</td><td>1</td><td>0</td><td>2</td><td>0</td><td>1</td><td>2</td></tr>
+          <tr><td>36</td><td><img class="thumb" src="../assets/exercises/exercise-36.png" alt="Alongamento lateral de quadríceps" /></td><td class="left">Alongamento lateral de quadríceps</td><td><span class="pill">mobility</span></td><td>1</td><td>0</td><td>0</td><td>1</td><td>0</td><td>2</td><td>1</td><td>1</td><td>1</td></tr>
+          <tr><td>37</td><td><img class="thumb" src="../assets/exercises/exercise-37.png" alt="Rolamento abraçando joelhos" /></td><td class="left">Rolamento abraçando joelhos</td><td><span class="pill">mobility</span></td><td>0</td><td>0</td><td>1</td><td>1</td><td>0</td><td>1</td><td>2</td><td>2</td><td>1</td></tr>
+          <tr><td>38</td><td><img class="thumb" src="../assets/exercises/exercise-38.png" alt="Gato-vaca" /></td><td class="left">Gato-vaca</td><td><span class="pill">mobility</span></td><td>0</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>2</td><td>1</td><td>0</td></tr>
+          <tr><td>39</td><td><img class="thumb" src="../assets/exercises/exercise-39.png" alt="Rotação torácica em quatro apoios" /></td><td class="left">Rotação torácica em quatro apoios</td><td><span class="pill">mobility</span></td><td>0</td><td>1</td><td>1</td><td>1</td><td>1</td><td>0</td><td>2</td><td>1</td><td>1</td></tr>
+          <tr><td>40</td><td><img class="thumb" src="../assets/exercises/exercise-40.png" alt="Rotação torácica deitada" /></td><td class="left">Rotação torácica deitada</td><td><span class="pill">mobility</span></td><td>0</td><td>1</td><td>1</td><td>1</td><td>1</td><td>0</td><td>2</td><td>1</td><td>0</td></tr>
+          <tr><td>41</td><td><img class="thumb" src="../assets/exercises/exercise-41.png" alt="Fluxo criança para cobra" /></td><td class="left">Fluxo criança para cobra</td><td><span class="pill">mobility</span></td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>2</td><td>1</td><td>0</td></tr>
+          <tr><td>42</td><td><img class="thumb" src="../assets/exercises/exercise-42.png" alt="Rotação cervical sentada" /></td><td class="left">Rotação cervical sentada</td><td><span class="pill">mobility</span></td><td>0</td><td>1</td><td>1</td><td>0</td><td>0</td><td>0</td><td>1</td><td>0</td><td>0</td></tr>
+          <tr><td>43</td><td><img class="thumb" src="../assets/exercises/exercise-43.png" alt="Inclinação lateral em pé" /></td><td class="left">Inclinação lateral em pé</td><td><span class="pill">mobility</span></td><td>0</td><td>0</td><td>1</td><td>1</td><td>1</td><td>0</td><td>2</td><td>1</td><td>1</td></tr>
+          <tr><td>44</td><td><img class="thumb" src="../assets/exercises/exercise-44.png" alt="Torção supina com joelhos unidos" /></td><td class="left">Torção supina com joelhos unidos</td><td><span class="pill">mobility</span></td><td>0</td><td>0</td><td>1</td><td>1</td><td>0</td><td>1</td><td>2</td><td>1</td><td>0</td></tr>
+          <tr><td>45</td><td><img class="thumb" src="../assets/exercises/exercise-45.png" alt="Elevação em Y a partir de 90 graus" /></td><td class="left">Elevação em Y a partir de 90 graus</td><td><span class="pill">mobility</span></td><td>0</td><td>1</td><td>1</td><td>0</td><td>2</td><td>0</td><td>1</td><td>0</td><td>0</td></tr>
+          <tr><td>46</td><td><img class="thumb" src="../assets/exercises/exercise-46.png" alt="Alongamento cruzado de ombro" /></td><td class="left">Alongamento cruzado de ombro</td><td><span class="pill">mobility</span></td><td>0</td><td>1</td><td>1</td><td>0</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+          <tr><td>47</td><td><img class="thumb" src="../assets/exercises/exercise-47.png" alt="Alongamento de tríceps acima da cabeça" /></td><td class="left">Alongamento de tríceps acima da cabeça</td><td><span class="pill">mobility</span></td><td>0</td><td>1</td><td>1</td><td>0</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+          <tr><td>48</td><td><img class="thumb" src="../assets/exercises/exercise-48.png" alt="Alongamento escapular com mão nas costas" /></td><td class="left">Alongamento escapular com mão nas costas</td><td><span class="pill">mobility</span></td><td>0</td><td>1</td><td>1</td><td>0</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+          <tr><td>49</td><td><img class="thumb" src="../assets/exercises/exercise-49.png" alt="Rock back em quatro apoios" /></td><td class="left">Rock back em quatro apoios</td><td><span class="pill">mobility</span></td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>0</td></tr>
+          <tr><td>50</td><td><img class="thumb" src="../assets/exercises/exercise-50.png" alt="Mobilidade de punho com palma para baixo" /></td><td class="left">Mobilidade de punho com palma para baixo</td><td><span class="pill">mobility</span></td><td>0</td><td>1</td><td>0</td><td>0</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+          <tr><td>51</td><td><img class="thumb" src="../assets/exercises/exercise-51.png" alt="Protração escapular em prancha" /></td><td class="left">Protração escapular em prancha</td><td><span class="pill">mobility</span></td><td>1</td><td>1</td><td>1</td><td>0</td><td>2</td><td>0</td><td>1</td><td>2</td><td>1</td></tr>
+          <tr><td>52</td><td><img class="thumb" src="../assets/exercises/exercise-52.png" alt="Elevação frontal dos braços" /></td><td class="left">Elevação frontal dos braços</td><td><span class="pill">mobility</span></td><td>0</td><td>1</td><td>1</td><td>0</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+          <tr><td>53</td><td><img class="thumb" src="../assets/exercises/exercise-53.png" alt="Rotação externa de ombros em 90 graus" /></td><td class="left">Rotação externa de ombros em 90 graus</td><td><span class="pill">mobility</span></td><td>0</td><td>1</td><td>1</td><td>0</td><td>1</td><td>0</td><td>1</td><td>0</td><td>0</td></tr>
+          <tr><td>54</td><td><img class="thumb" src="../assets/exercises/exercise-54.png" alt="Agachamento profundo com braços à frente" /></td><td class="left">Agachamento profundo com braços à frente</td><td><span class="pill">mobility</span></td><td>1</td><td>0</td><td>0</td><td>1</td><td>0</td><td>2</td><td>1</td><td>1</td><td>1</td></tr>
+          <tr><td>55</td><td><img class="thumb" src="../assets/exercises/exercise-55.png" alt="Avanço lateral profundo" /></td><td class="left">Avanço lateral profundo</td><td><span class="pill">mobility</span></td><td>1</td><td>0</td><td>0</td><td>1</td><td>0</td><td>2</td><td>1</td><td>1</td><td>1</td></tr>
+          <tr><td>56</td><td><img class="thumb" src="../assets/exercises/exercise-56.png" alt="Alongamento com inclinação lateral em meio-ajoelhado" /></td><td class="left">Alongamento com inclinação lateral em meio-ajoelhado</td><td><span class="pill">mobility</span></td><td>1</td><td>0</td><td>1</td><td>1</td><td>1</td><td>1</td><td>2</td><td>1</td><td>1</td></tr>
+          <tr><td>57</td><td><img class="thumb" src="../assets/exercises/exercise-57.png" alt="Rotação 90/90 sentada" /></td><td class="left">Rotação 90/90 sentada</td><td><span class="pill">mobility</span></td><td>1</td><td>0</td><td>0</td><td>1</td><td>0</td><td>2</td><td>1</td><td>1</td><td>0</td></tr>
+          <tr><td>58</td><td><img class="thumb" src="../assets/exercises/exercise-58.png" alt="Alcance posterior em quatro apoios" /></td><td class="left">Alcance posterior em quatro apoios</td><td><span class="pill">mobility</span></td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>0</td></tr>
+          <tr><td>59</td><td><img class="thumb" src="../assets/exercises/exercise-59.png" alt="Rotação torácica com mão na cabeça" /></td><td class="left">Rotação torácica com mão na cabeça</td><td><span class="pill">mobility</span></td><td>0</td><td>1</td><td>1</td><td>1</td><td>1</td><td>0</td><td>2</td><td>1</td><td>0</td></tr>
+          <tr><td>60</td><td><img class="thumb" src="../assets/exercises/exercise-60.png" alt="Extensão de coluna em prona" /></td><td class="left">Extensão de coluna em prona</td><td><span class="pill">mobility</span></td><td>1</td><td>0</td><td>1</td><td>1</td><td>1</td><td>0</td><td>2</td><td>1</td><td>0</td></tr>
+          <tr><td>61</td><td><img class="thumb" src="../assets/exercises/exercise-61.png" alt="Agachamento lateral (Cossack)" /></td><td class="left">Agachamento lateral (Cossack)</td><td><span class="pill">mobility</span></td><td>1</td><td>0</td><td>0</td><td>1</td><td>0</td><td>2</td><td>1</td><td>1</td><td>1</td></tr>
+          <tr><td>62</td><td><img class="thumb" src="../assets/exercises/exercise-62.png" alt="Rotação 90/90 de quadril" /></td><td class="left">Rotação 90/90 de quadril</td><td><span class="pill">mobility</span></td><td>1</td><td>0</td><td>0</td><td>1</td><td>0</td><td>2</td><td>1</td><td>1</td><td>0</td></tr>
+          <tr><td>63</td><td><img class="thumb" src="../assets/exercises/exercise-63.png" alt="Alongamento do flexor do quadril" /></td><td class="left">Alongamento do flexor do quadril</td><td><span class="pill">mobility</span></td><td>1</td><td>0</td><td>1</td><td>1</td><td>1</td><td>1</td><td>2</td><td>1</td><td>1</td></tr>
+          <tr><td>64</td><td><img class="thumb" src="../assets/exercises/exercise-64.png" alt="Avanço com rotação torácica" /></td><td class="left">Avanço com rotação torácica</td><td><span class="pill">mobility</span></td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>2</td><td>2</td><td>1</td><td>1</td></tr>
+          <tr><td>65</td><td><img class="thumb" src="../assets/exercises/exercise-65.png" alt="Frog stretch dinâmico" /></td><td class="left">Frog stretch dinâmico</td><td><span class="pill">mobility</span></td><td>1</td><td>0</td><td>0</td><td>1</td><td>0</td><td>2</td><td>1</td><td>0</td><td>0</td></tr>
+          <tr><td>66</td><td><img class="thumb" src="../assets/exercises/exercise-66.png" alt="Hip airplane apoiado" /></td><td class="left">Hip airplane apoiado</td><td><span class="pill">mobility</span></td><td>1</td><td>0</td><td>0</td><td>1</td><td>0</td><td>2</td><td>2</td><td>2</td><td>2</td></tr>
+          <tr><td>67</td><td><img class="thumb" src="../assets/exercises/exercise-67.png" alt="CAR de quadril em pé" /></td><td class="left">CAR de quadril em pé</td><td><span class="pill">mobility</span></td><td>1</td><td>0</td><td>0</td><td>1</td><td>0</td><td>2</td><td>1</td><td>1</td><td>2</td></tr>
+          <tr><td>68</td><td><img class="thumb" src="../assets/exercises/exercise-68.png" alt="Shin box get-up" /></td><td class="left">Shin box get-up</td><td><span class="pill">mobility</span></td><td>1</td><td>0</td><td>1</td><td>1</td><td>0</td><td>2</td><td>2</td><td>2</td><td>1</td></tr>
+          <tr><td>69</td><td><img class="thumb" src="../assets/exercises/exercise-69.png" alt="Agachamento profundo" /></td><td class="left">Agachamento profundo</td><td><span class="pill">mobility</span></td><td>1</td><td>0</td><td>0</td><td>1</td><td>0</td><td>2</td><td>1</td><td>1</td><td>1</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</body>
+</html>

@@ -85,6 +85,11 @@
           <div class="chip-row" id="foundationFilters"></div>
         </div>
 
+        <div class="filter-block">
+          <p>Valência Esportiva</p>
+          <div class="chip-row" id="sportValenceFilters"></div>
+        </div>
+
         <div class="results-meta">
           <strong id="resultsCount">0 resultados</strong>
           <span id="resultsSummary">Banco completo</span>
@@ -103,7 +108,7 @@
           <button class="text-button" id="clearSelectionButton" type="button">Limpar sessão</button>
         </div>
 
-        <form id="sessionForm" class="editor-form session-form">
+        <form id="sessionForm" class="editor-form session-form" data-mode="intervalado">
           <label>
             <span>Nome da sessão</span>
             <input id="sessionName" type="text" placeholder="Sessão de força para o surfe">
@@ -113,8 +118,10 @@
             <label>
               <span>Modo de treino</span>
               <select id="sessionMode">
-                <option value="intervalado">MODO Intervalado</option>
-                <option value="rot">MODO ROT (Reps On Time)</option>
+                <option value="intervalado">Intervalado</option>
+                <option value="rot">ROT (Reps On Time)</option>
+                <option value="mobility_reps">MOBILITY REPs (n Reps por movimento)</option>
+                <option value="mobility_time">MOBILITY TIME (n s por movimento)</option>
               </select>
             </label>
 
@@ -125,10 +132,40 @@
           </div>
 
           <div class="form-split session-timing-grid">
-            <label id="workField">
-              <span id="workLabel">Tempo por exercício</span>
-              <input id="workMinutes" type="number" min="0" step="0.25" placeholder="Ex.: 1.25" value="2">
-            </label>
+            <div class="session-duration-group" id="intervalDurationGroup">
+              <span class="duration-group-label" id="durationGroupLabel">Estímulo / Recuperação</span>
+              <div class="duration-pair-row">
+                <div id="workField" class="duration-cluster">
+                  <span class="duration-cluster-label" id="workClusterLabel">Estímulo</span>
+                  <div class="duration-row">
+                    <div class="duration-part duration-part-minutes">
+                      <span>Min</span>
+                      <input id="workMinutesPart" type="number" min="0" step="1" value="2">
+                    </div>
+                    <div class="duration-part duration-part-seconds">
+                      <span>s</span>
+                      <input id="workSecondsPart" type="number" min="0" max="59" step="5" value="0">
+                    </div>
+                  </div>
+                  <input id="workMinutes" type="hidden" value="2">
+                </div>
+                <span class="duration-separator">/</span>
+                <div id="restField" class="duration-cluster">
+                  <span class="duration-cluster-label" id="restClusterLabel">Recuperação</span>
+                  <div class="duration-row">
+                    <div class="duration-part duration-part-minutes">
+                      <span>Min</span>
+                      <input id="restMinutesPart" type="number" min="0" step="1" value="2">
+                    </div>
+                    <div class="duration-part duration-part-seconds">
+                      <span>s</span>
+                      <input id="restSecondsPart" type="number" min="0" max="59" step="5" value="0">
+                    </div>
+                  </div>
+                  <input id="restMinutes" type="hidden" value="2">
+                </div>
+              </div>
+            </div>
             <label id="intensityField">
               <span>Escala 4PIS</span>
               <select id="intensity4pis">
@@ -139,10 +176,6 @@
                 <option value="4">4</option>
                 <option value="All Out">All Out</option>
               </select>
-            </label>
-            <label id="restField">
-              <span id="restLabel">Recuperação</span>
-              <input id="restMinutes" type="number" min="0" step="0.25" placeholder="Ex.: 0.5" value="2">
             </label>
             <label id="repsField" hidden>
               <span>Repetições por exercício</span>
@@ -157,7 +190,7 @@
           <div class="panel-header compact">
             <div>
               <p class="panel-title">Lista prescrita</p>
-              <span class="panel-subtitle">A ordem abaixo define a execução.</span>
+              <span class="panel-subtitle" id="selectedListSubtitle">0 exercícios selecionados.</span>
             </div>
             <div class="random-tools">
               <button class="ghost-button compact-button random-button" id="randomSelectionButton" type="button">Random</button>
@@ -183,6 +216,7 @@
             <button class="ghost-button" id="exportPdfButton" type="button">Exportar sessão em PDF</button>
             <button class="ghost-button" id="exportJpegButton" type="button">Exportar sessão em JPEG</button>
           </div>
+          <p class="hint" id="sessionFeedback" aria-live="polite"></p>
         </section>
 
       </aside>

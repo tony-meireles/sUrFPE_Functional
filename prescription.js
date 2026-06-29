@@ -21,6 +21,16 @@
       rowing: 'Remada',
       navigation: 'Navegação',
       railManeuvers: 'Manobras de Borda'
+    },
+    sportValenceKeys: {
+      strengthEndurance: 'Força Resistente ou Pura',
+      explosiveStrength: 'Força Explosiva',
+      mobility: 'Mobilidade',
+      balance: 'Equilíbrio',
+      landing: 'Landing',
+      aerobic: 'Aeróbio',
+      speed: 'Velocidade',
+      agility: 'Agilidade'
     }
   };
 
@@ -32,6 +42,7 @@
     implementFilters: new Set(),
     scoreFilters: new Set(),
     foundationFilters: new Set(),
+    sportValenceFilters: new Set(),
     currentPage: 1
   };
 
@@ -41,12 +52,14 @@
     implementFilters: document.getElementById('implementFilters'),
     scoreFilters: document.getElementById('scoreFilters'),
     foundationFilters: document.getElementById('foundationFilters'),
+    sportValenceFilters: document.getElementById('sportValenceFilters'),
     pagination: document.getElementById('pagination'),
     clearFiltersButton: document.getElementById('clearFiltersButton'),
     clearSelectionButton: document.getElementById('clearSelectionButton'),
     randomSelectionButton: document.getElementById('randomSelectionButton'),
     randomModal: document.getElementById('randomModal'),
     randomForm: document.getElementById('randomForm'),
+    sessionForm: document.getElementById('sessionForm'),
     randomExerciseCount: document.getElementById('randomExerciseCount'),
     closeRandomModalButton: document.getElementById('closeRandomModalButton'),
     cancelRandomButton: document.getElementById('cancelRandomButton'),
@@ -56,23 +69,33 @@
     saveSessionButton: document.getElementById('saveSessionButton'),
     exportPdfButton: document.getElementById('exportPdfButton'),
     exportJpegButton: document.getElementById('exportJpegButton'),
+    sessionFeedback: document.getElementById('sessionFeedback'),
     savedSessionsList: document.getElementById('savedSessionsList'),
     sessionName: document.getElementById('sessionName'),
     sessionMode: document.getElementById('sessionMode'),
     workMinutes: document.getElementById('workMinutes'),
+    workMinutesPart: document.getElementById('workMinutesPart'),
+    workSecondsPart: document.getElementById('workSecondsPart'),
     intensity4pis: document.getElementById('intensity4pis'),
     restMinutes: document.getElementById('restMinutes'),
+    restMinutesPart: document.getElementById('restMinutesPart'),
+    restSecondsPart: document.getElementById('restSecondsPart'),
     seriesCount: document.getElementById('seriesCount'),
     repsPerExercise: document.getElementById('repsPerExercise'),
     workField: document.getElementById('workField'),
+    workClusterLabel: document.getElementById('workClusterLabel'),
+    intervalDurationGroup: document.getElementById('intervalDurationGroup'),
+    durationGroupLabel: document.getElementById('durationGroupLabel'),
     intensityField: document.getElementById('intensityField'),
     restField: document.getElementById('restField'),
+    restClusterLabel: document.getElementById('restClusterLabel'),
     repsField: document.getElementById('repsField'),
-    workLabel: document.getElementById('workLabel'),
+    workLabel: document.getElementById('workClusterLabel'),
     modeHint: document.getElementById('modeHint'),
     resultsCount: document.getElementById('resultsCount'),
     resultsSummary: document.getElementById('resultsSummary'),
     selectedCount: document.getElementById('selectedCount'),
+    selectedListSubtitle: document.getElementById('selectedListSubtitle'),
     totalSessionTime: document.getElementById('totalSessionTime'),
     savedSessionCount: document.getElementById('savedSessionCount'),
     sessionHeadline: document.getElementById('sessionHeadline'),
@@ -84,6 +107,7 @@
 
   bindEvents();
   renderFilterControls();
+  syncAllDurationInputsFromModel();
   syncModeFields();
   loadSessionFromQuery();
   render();
@@ -91,14 +115,30 @@
 
   function loadExercises() {
     const saved = localStorage.getItem(EXERCISE_STORAGE_KEY);
-    if (!saved) return structuredClone(repository.exercises || []);
+    if (!saved) return (repository.exercises || []).map(normalizeExerciseData);
 
     try {
-      return JSON.parse(saved);
+      return mergeExerciseLibraries(repository.exercises || [], JSON.parse(saved)).map(normalizeExerciseData);
     } catch (error) {
       console.warn('Falha ao restaurar a base editada. Usando base importada.', error);
-      return structuredClone(repository.exercises || []);
+      return (repository.exercises || []).map(normalizeExerciseData);
     }
+  }
+
+  function mergeExerciseLibraries(baseExercises, savedExercises) {
+    const merged = new Map();
+
+    (baseExercises || []).forEach((exercise) => {
+      merged.set(Number(exercise.id), structuredClone(exercise));
+    });
+
+    (savedExercises || []).forEach((exercise) => {
+      const id = Number(exercise?.id);
+      const base = merged.get(id) || {};
+      merged.set(id, { ...structuredClone(base), ...structuredClone(exercise || {}) });
+    });
+
+    return [...merged.values()].sort((a, b) => Number(a.id) - Number(b.id));
   }
 
   function loadSessions() {
@@ -113,6 +153,38 @@
     }
   }
 
+  function normalizeExerciseData(exercise) {
+    const normalized = structuredClone(exercise || {});
+    normalized.sportValences = deriveSportValences(normalized);
+    normalized.tags = buildExerciseTags(normalized);
+    return normalized;
+  }
+
+  function deriveSportValences(exercise) {
+    const valences = normalizeSportValences(exercise?.sportValences);
+    if (!shouldClassifyAsMobility(exercise)) return valences;
+
+    const withoutDefaultStrength = valences.filter((value) => value !== 'strengthEndurance');
+    return withoutDefaultStrength.includes('mobility')
+      ? withoutDefaultStrength
+      : [...withoutDefaultStrength, 'mobility'];
+  }
+
+  function shouldClassifyAsMobility(exercise) {
+    const sourceSheet = normalizeText(exercise?.source?.sheet);
+    const tags = Array.isArray(exercise?.tags) ? exercise.tags.map((tag) => normalizeText(tag)) : [];
+    return sourceSheet.includes('mobilidade') || tags.includes('mobilidade');
+  }
+
+  function buildExerciseTags(exercise) {
+    const tags = Array.isArray(exercise?.tags) ? [...exercise.tags] : [];
+    normalizeSportValences(exercise?.sportValences).forEach((key) => {
+      const label = labels.sportValenceKeys[key];
+      if (label && !tags.includes(label)) tags.push(label);
+    });
+    return tags;
+  }
+
   function bindEvents() {
     elements.searchInput.addEventListener('input', (event) => {
       state.search = event.target.value.trim().toLowerCase();
@@ -125,6 +197,7 @@
       state.implementFilters.clear();
       state.scoreFilters.clear();
       state.foundationFilters.clear();
+      state.sportValenceFilters.clear();
       elements.searchInput.value = '';
       renderFilterControls();
       render();
@@ -148,16 +221,28 @@
       }
     });
 
-    elements.workMinutes.addEventListener('input', render);
+    bindDurationInputSync('work');
+    bindDurationInputSync('rest');
+    elements.workMinutes.addEventListener('input', () => {
+      syncDurationInputsFromModel('work');
+      render();
+    });
     elements.intensity4pis.addEventListener('input', render);
-    elements.restMinutes.addEventListener('input', render);
+    elements.restMinutes.addEventListener('input', () => {
+      syncDurationInputsFromModel('rest');
+      render();
+    });
     elements.seriesCount.addEventListener('input', render);
     elements.sessionMode.addEventListener('change', () => {
+      clearSessionFeedback();
       syncModeFields();
       render();
     });
     elements.repsPerExercise.addEventListener('input', render);
     elements.sessionName.addEventListener('input', render);
+    [elements.searchInput, elements.workMinutesPart, elements.workSecondsPart, elements.intensity4pis, elements.restMinutesPart, elements.restSecondsPart, elements.seriesCount, elements.repsPerExercise, elements.sessionName].forEach((element) => {
+      element?.addEventListener('input', clearSessionFeedback);
+    });
     elements.saveSessionButton.addEventListener('click', saveSession);
     elements.exportPdfButton.addEventListener('click', exportSessionAsPdf);
     elements.exportJpegButton?.addEventListener('click', exportSessionAsJpeg);
@@ -167,6 +252,7 @@
     renderChips(elements.implementFilters, uniqueValues(state.exercises.map((exercise) => exercise.implement)), state.implementFilters);
     renderChips(elements.scoreFilters, Object.keys(labels.scoreKeys), state.scoreFilters, labels.scoreKeys);
     renderChips(elements.foundationFilters, Object.keys(labels.foundationKeys), state.foundationFilters, labels.foundationKeys);
+    renderChips(elements.sportValenceFilters, Object.keys(labels.sportValenceKeys), state.sportValenceFilters, labels.sportValenceKeys);
   }
 
   function renderChips(container, options, activeSet, dictionary) {
@@ -217,6 +303,12 @@
           if (!ok) return false;
         }
 
+        if (state.sportValenceFilters.size > 0) {
+          const valences = normalizeSportValences(exercise.sportValences);
+          const ok = [...state.sportValenceFilters].every((key) => valences.includes(key));
+          if (!ok) return false;
+        }
+
         return true;
       })
       .sort((a, b) => Number(a.id) - Number(b.id));
@@ -230,15 +322,13 @@
     const start = (state.currentPage - 1) * PAGE_SIZE;
     const paginated = filtered.slice(start, start + PAGE_SIZE);
     const mode = getSessionMode();
-    const workMinutes = getNumber(elements.workMinutes.value);
-    const intensity4pis = mode === 'intervalado' ? getIntensity4pisValue() : '';
-    const restMinutes = mode === 'intervalado' ? getNumber(elements.restMinutes.value) : 0;
+    const workMinutes = modeUsesWork(mode) ? getNumber(elements.workMinutes.value) : 0;
+    const intensity4pis = getIntensity4pisValue();
+    const restMinutes = modeUsesRest(mode) ? getNumber(elements.restMinutes.value) : 0;
     const seriesCount = Math.max(1, Math.floor(getNumber(elements.seriesCount.value) || 1));
-    const repsPerExercise = mode === 'rot' ? Math.max(1, Math.floor(getNumber(elements.repsPerExercise.value) || 0)) : 0;
+    const repsPerExercise = modeUsesReps(mode) ? Math.max(1, Math.floor(getNumber(elements.repsPerExercise.value) || 0)) : 0;
     const blockMinutes = mode === 'intervalado' ? workMinutes + restMinutes : workMinutes;
-    const roundMinutes = state.selectedItems.length === 0
-      ? 0
-      : (mode === 'intervalado' ? state.selectedItems.length * blockMinutes : workMinutes);
+    const roundMinutes = state.selectedItems.length === 0 ? 0 : getRoundMinutes(mode, workMinutes, restMinutes, state.selectedItems.length);
     const totalMinutes = roundMinutes * seriesCount;
     const sessionName = elements.sessionName.value.trim();
     const emphasis = summarizeSessionEmphasis(state.selectedItems.map((item) => item.exercise));
@@ -249,17 +339,20 @@
       ? `Página ${state.currentPage} de ${totalPages}`
       : (state.search ? `Busca por "${state.search}"` : 'Banco completo');
     elements.selectedCount.textContent = String(state.selectedItems.length);
-    elements.totalSessionTime.textContent = formatMinutes(totalMinutes);
+    if (elements.selectedListSubtitle) {
+      const count = state.selectedItems.length;
+      elements.selectedListSubtitle.textContent = `${count} ${count === 1 ? 'exercício selecionado' : 'exercícios selecionados'}.`;
+      elements.selectedListSubtitle.classList.toggle('selected-list-count', count > 0);
+    }
+    elements.totalSessionTime.textContent = formatSessionTotal(mode, totalMinutes);
     if (elements.savedSessionCount) {
       elements.savedSessionCount.textContent = String(state.sessions.length);
     }
     elements.sessionHeadline.textContent = state.selectedItems.length
-      ? `${mode === 'rot' ? 'MODO ROT' : 'MODO Intervalado'} | ${seriesCount} série${seriesCount === 1 ? '' : 's'} | ${state.selectedItems.length} exercício${state.selectedItems.length === 1 ? '' : 's'}`
+      ? `${getModeLabel(mode)} | ${seriesCount} série${seriesCount === 1 ? '' : 's'} | ${state.selectedItems.length} ${isMobilityMode(mode) ? 'movimento' : 'exercício'}${state.selectedItems.length === 1 ? '' : 's'}`
       : 'Nenhum exercício selecionado';
-    elements.sessionRatio.textContent = mode === 'intervalado'
-      ? `Trabalho/recuperação: ${formatMinutes(workMinutes)} / ${formatMinutes(restMinutes)}`
-      : `ROT: ${repsPerExercise} reps por exercício | ${formatMinutes(workMinutes)} por série`;
-    elements.sessionTotalLabel.textContent = `Tempo total: ${formatMinutes(totalMinutes)}`;
+    elements.sessionRatio.textContent = getSummaryRatioText(mode, workMinutes, restMinutes, repsPerExercise, intensity4pis);
+    elements.sessionTotalLabel.textContent = `Tempo total: ${formatSessionTotal(mode, totalMinutes)}`;
 
     renderExerciseGrid(paginated);
     renderPagination(totalPages);
@@ -868,6 +961,7 @@
     elements.workMinutes.value = session.workMinutes ?? '';
     elements.intensity4pis.value = session.intensity4pis ?? '0';
     elements.restMinutes.value = session.restMinutes ?? '';
+    syncAllDurationInputsFromModel();
     elements.seriesCount.value = session.seriesCount ?? 1;
     elements.repsPerExercise.value = session.repsPerExercise ?? 5;
     syncModeFields();
@@ -877,7 +971,7 @@
         const baseExercise = state.exercises.find((item) => Number(item.id) === Number(exercise.id));
         return {
           entryId: window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() : `${exercise.id}-${Date.now()}-${Math.random()}`,
-          exercise: structuredClone({
+          exercise: normalizeExerciseData({
             ...(baseExercise || {}),
             ...exercise,
             scores: exercise.scores || baseExercise?.scores || {},
@@ -902,8 +996,53 @@
     return Number.isFinite(number) && number >= 0 ? number : 0;
   }
 
+  function bindDurationInputSync(kind) {
+    const minuteField = kind === 'work' ? elements.workMinutesPart : elements.restMinutesPart;
+    const secondField = kind === 'work' ? elements.workSecondsPart : elements.restSecondsPart;
+    [minuteField, secondField].forEach((field) => {
+      field?.addEventListener('input', () => {
+        syncDurationModelFromInputs(kind);
+        render();
+      });
+      field?.addEventListener('change', () => {
+        syncDurationModelFromInputs(kind, true);
+        render();
+      });
+    });
+  }
+
+  function syncAllDurationInputsFromModel() {
+    syncDurationInputsFromModel('work');
+    syncDurationInputsFromModel('rest');
+  }
+
+  function syncDurationInputsFromModel(kind) {
+    const hiddenField = kind === 'work' ? elements.workMinutes : elements.restMinutes;
+    const minuteField = kind === 'work' ? elements.workMinutesPart : elements.restMinutesPart;
+    const secondField = kind === 'work' ? elements.workSecondsPart : elements.restSecondsPart;
+    const totalSeconds = Math.max(0, Math.round(getNumber(hiddenField?.value) * 60));
+    minuteField.value = String(Math.floor(totalSeconds / 60));
+    secondField.value = String(totalSeconds % 60);
+  }
+
+  function syncDurationModelFromInputs(kind, normalizeVisible = false) {
+    const hiddenField = kind === 'work' ? elements.workMinutes : elements.restMinutes;
+    const minuteField = kind === 'work' ? elements.workMinutesPart : elements.restMinutesPart;
+    const secondField = kind === 'work' ? elements.workSecondsPart : elements.restSecondsPart;
+    const minutes = Math.max(0, Math.floor(getNumber(minuteField?.value)));
+    const seconds = Math.max(0, Math.floor(getNumber(secondField?.value)));
+    const normalizedTotalSeconds = (minutes * 60) + seconds;
+    hiddenField.value = String(normalizedTotalSeconds / 60);
+
+    if (normalizeVisible) {
+      minuteField.value = String(Math.floor(normalizedTotalSeconds / 60));
+      secondField.value = String(normalizedTotalSeconds % 60);
+    }
+  }
+
   function getSessionMode() {
-    return elements.sessionMode.value === 'rot' ? 'rot' : 'intervalado';
+    const mode = String(elements.sessionMode.value || '').trim();
+    return ['intervalado', 'rot', 'mobility_reps', 'mobility_time'].includes(mode) ? mode : 'intervalado';
   }
 
   function syncModeFields() {
@@ -1298,58 +1437,70 @@
   }
 
   function saveSession() {
+    if (elements.saveSessionButton?.disabled) return;
+
     if (state.selectedItems.length === 0) {
       alert('Selecione pelo menos um exercicio para gravar a sessao.');
       return;
     }
 
-    const mode = getSessionMode();
-    const workMinutes = getNumber(elements.workMinutes.value);
-    const restMinutes = mode === 'intervalado' ? getNumber(elements.restMinutes.value) : 0;
-    const seriesCount = Math.max(1, Math.floor(getNumber(elements.seriesCount.value) || 1));
-    const repsPerExercise = mode === 'rot' ? Math.max(1, Math.floor(getNumber(elements.repsPerExercise.value) || 0)) : 0;
+    setSessionBusy(true);
 
-    if (workMinutes <= 0) {
-      alert('Informe um tempo maior que zero para fechar a sessao.');
-      return;
+    try {
+      const mode = getSessionMode();
+      const workMinutes = modeUsesWork(mode) ? getNumber(elements.workMinutes.value) : 0;
+      const intensity4pis = getIntensity4pisValue();
+      const restMinutes = modeUsesRest(mode) ? getNumber(elements.restMinutes.value) : 0;
+      const seriesCount = Math.max(1, Math.floor(getNumber(elements.seriesCount.value) || 1));
+      const repsPerExercise = modeUsesReps(mode) ? Math.max(1, Math.floor(getNumber(elements.repsPerExercise.value) || 0)) : 0;
+
+      if (modeUsesWork(mode) && workMinutes <= 0) {
+        alert('Informe um tempo maior que zero para fechar a sessao.');
+        return;
+      }
+
+      if (modeUsesReps(mode) && repsPerExercise <= 0) {
+        alert(`Informe o numero de repeticoes por ${isMobilityMode(mode) ? 'movimento' : 'exercicio'} para o modo ${getModeLabel(mode)}.`);
+        return;
+      }
+
+      const roundMinutes = mode === 'intervalado'
+        ? state.selectedItems.length * (workMinutes + restMinutes)
+        : workMinutes;
+      const totalMinutes = roundMinutes * seriesCount;
+      const fullExercises = state.selectedItems.map((item) => normalizeExerciseData(item.exercise));
+      const emphasis = summarizeSessionEmphasis(fullExercises);
+
+      const activityAt = new Date().toISOString();
+      const session = {
+        id: window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() : `session-${Date.now()}`,
+        name: elements.sessionName.value.trim() || `Sessao ${new Date().toLocaleDateString('pt-BR')}`,
+        createdAt: activityAt,
+        updatedAt: activityAt,
+        mode,
+        workMinutes,
+        intensity4pis,
+        restMinutes,
+        seriesCount,
+        repsPerExercise,
+        totalMinutes,
+        emphasis,
+        exercises: fullExercises.map((exercise, index) => ({
+          order: index + 1,
+          ...exercise
+        }))
+      };
+
+      state.sessions.unshift(session);
+      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(state.sessions));
+      render();
+      setSessionFeedback(`Sessao "${session.name}" gravada com sucesso.`);
+    } catch (error) {
+      console.error('Falha ao gravar sessao.', error);
+      setSessionFeedback('Nao foi possivel gravar a sessao. Verifique o armazenamento do navegador e tente novamente.');
+    } finally {
+      setSessionBusy(false);
     }
-
-    if (mode === 'rot' && repsPerExercise <= 0) {
-      alert('Informe o numero de repeticoes por exercicio para o modo ROT.');
-      return;
-    }
-
-    const roundMinutes = mode === 'intervalado'
-      ? state.selectedItems.length * (workMinutes + restMinutes)
-      : workMinutes;
-    const totalMinutes = roundMinutes * seriesCount;
-    const fullExercises = state.selectedItems.map((item) => structuredClone(item.exercise));
-    const emphasis = summarizeSessionEmphasis(fullExercises);
-
-    const activityAt = new Date().toISOString();
-    const session = {
-      id: window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() : `session-${Date.now()}`,
-      name: elements.sessionName.value.trim() || `Sessao ${new Date().toLocaleDateString('pt-BR')}`,
-      createdAt: activityAt,
-      updatedAt: activityAt,
-      mode,
-      workMinutes,
-      intensity4pis,
-      restMinutes,
-      seriesCount,
-      repsPerExercise,
-      totalMinutes,
-      emphasis,
-      exercises: fullExercises.map((exercise, index) => ({
-        order: index + 1,
-        ...exercise
-      }))
-    };
-
-    state.sessions.unshift(session);
-    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(state.sessions));
-    render();
-    alert('Sessao gravada com sucesso.');
   }
 
   function exportSessionAsPdf() {
@@ -1367,9 +1518,9 @@
 
     const restMinutes = mode === 'intervalado' ? getNumber(elements.restMinutes.value) : 0;
     const seriesCount = Math.max(1, Math.floor(getNumber(elements.seriesCount.value) || 1));
-    const repsPerExercise = mode === 'rot' ? Math.max(1, Math.floor(getNumber(elements.repsPerExercise.value) || 0)) : 0;
-    if (mode === 'rot' && repsPerExercise <= 0) {
-      alert('Informe o numero de repeticoes por exercicio para exportar em modo ROT.');
+    const repsPerExercise = mode === 'intervalado' ? 0 : Math.max(1, Math.floor(getNumber(elements.repsPerExercise.value) || 0));
+    if (mode !== 'intervalado' && repsPerExercise <= 0) {
+      alert(`Informe o numero de repeticoes por exercicio para exportar em modo ${mode === 'mobility_reps' ? 'MOBILITY REPs' : 'ROT'}.`);
       return;
     }
 
@@ -1435,13 +1586,13 @@
     const workMinutes = getNumber(elements.workMinutes.value);
     const restMinutes = mode === 'intervalado' ? getNumber(elements.restMinutes.value) : 0;
     const seriesCount = Math.max(1, Math.floor(getNumber(elements.seriesCount.value) || 1));
-    const repsPerExercise = mode === 'rot' ? Math.max(1, Math.floor(getNumber(elements.repsPerExercise.value) || 0)) : 0;
+    const repsPerExercise = mode === 'intervalado' ? 0 : Math.max(1, Math.floor(getNumber(elements.repsPerExercise.value) || 0));
     if (workMinutes <= 0) {
       alert('Informe um tempo maior que zero para exportar a sessao.');
       return;
     }
-    if (mode === 'rot' && repsPerExercise <= 0) {
-      alert('Informe o numero de repeticoes por exercicio para exportar em modo ROT.');
+    if (mode !== 'intervalado' && repsPerExercise <= 0) {
+      alert(`Informe o numero de repeticoes por exercicio para exportar em modo ${mode === 'mobility_reps' ? 'MOBILITY REPs' : 'ROT'}.`);
       return;
     }
 
@@ -2274,13 +2425,23 @@
   }
 
   function getRoundMinutes(mode, workMinutes, restMinutes, exerciseCount) {
-    return mode === 'intervalado'
-      ? Math.max(0, Number(exerciseCount || 0)) * (Number(workMinutes || 0) + Number(restMinutes || 0))
-      : Number(workMinutes || 0);
+    if (mode === 'intervalado') {
+      return Math.max(0, Number(exerciseCount || 0)) * (Number(workMinutes || 0) + Number(restMinutes || 0));
+    }
+    if (mode === 'mobility_time') {
+      return Math.max(0, Number(exerciseCount || 0)) * Number(workMinutes || 0);
+    }
+    if (mode === 'mobility_reps') {
+      return 0;
+    }
+    return Number(workMinutes || 0);
   }
 
   function getModeLabel(mode) {
-    return mode === 'rot' ? 'ROT' : 'Intervalado';
+    if (mode === 'rot') return 'ROT (Reps On Time)';
+    if (mode === 'mobility_reps') return 'MOBILITY REPs (n Reps por movimento)';
+    if (mode === 'mobility_time') return 'MOBILITY TIME (n s por movimento)';
+    return 'Intervalado';
   }
 
   getSessionExpression = function (mode, exerciseCount, seriesCount, workMinutes, restMinutes, repsPerExercise, intensity4pis) {
@@ -2289,7 +2450,13 @@
     if (mode === 'intervalado') {
       return `${getModeLabel(mode)} | ${safeSeriesCount} series x [${safeExerciseCount} exercicios x (${formatMinutes(workMinutes)} - ${format4PisLabel(intensity4pis)} / ${formatMinutes(restMinutes)})]`;
     }
-    return `${getModeLabel(mode)} | ${safeSeriesCount} Series x (${safeExerciseCount} exercicios com ${Math.max(1, Number(repsPerExercise || 0))} reps - ${format4PisLabel(intensity4pis)} / ${formatMinutes(workMinutes)})`;
+    if (mode === 'mobility_reps') {
+      return `${getModeLabel(mode)} | ${safeSeriesCount} series x (${safeExerciseCount} movimentos com ${Math.max(1, Number(repsPerExercise || 0))} reps - ${format4PisLabel(intensity4pis)})`;
+    }
+    if (mode === 'mobility_time') {
+      return `${getModeLabel(mode)} | ${safeSeriesCount} series x (${safeExerciseCount} movimentos com ${formatMinutes(workMinutes)} - ${format4PisLabel(intensity4pis)})`;
+    }
+    return `${getModeLabel(mode)} | ${safeSeriesCount} series x (${safeExerciseCount} exercicios com ${Math.max(1, Number(repsPerExercise || 0))} reps - ${format4PisLabel(intensity4pis)} / ${formatMinutes(workMinutes)})`;
   };
 
   getModeSummaryText = function (mode, workMinutes, restMinutes, repsPerExercise) {
@@ -2322,6 +2489,12 @@
     if (mode === 'intervalado') {
       return `${formatMinutes(workMinutes)} de estimulo | ${format4PisLabel()} | ${formatMinutes(restMinutes)} de recuperacao | RER ${formatRerLabel(workMinutes, restMinutes)}`;
     }
+    if (mode === 'mobility_reps') {
+      return `${repsPerExercise} reps por movimento | ${format4PisLabel()}`;
+    }
+    if (mode === 'mobility_time') {
+      return `${formatMinutes(workMinutes)} por movimento | ${format4PisLabel()}`;
+    }
     return `${repsPerExercise} reps por exercicio | ${format4PisLabel()} | serie completa em ate ${formatMinutes(workMinutes)}`;
   };
 
@@ -2329,29 +2502,82 @@
     const mode = getSessionMode();
     const isIntervalado = mode === 'intervalado';
     const isRot = mode === 'rot';
+    const isMobilityReps = mode === 'mobility_reps';
+    const isMobilityTime = mode === 'mobility_time';
+    const showDurationGroup = isIntervalado || isRot || isMobilityTime;
+    const showRestField = isIntervalado;
+    const showRepsField = isRot || isMobilityReps;
 
-    elements.repsField.hidden = !isRot;
-    elements.repsField.style.display = isRot ? '' : 'none';
-    elements.repsPerExercise.disabled = !isRot;
+    elements.sessionForm?.setAttribute('data-mode', mode);
+
+    elements.intervalDurationGroup.hidden = !showDurationGroup;
+    elements.intervalDurationGroup.style.display = showDurationGroup ? 'grid' : 'none';
+    elements.workField.hidden = !showDurationGroup;
+    elements.workField.style.display = showDurationGroup ? 'grid' : 'none';
+    elements.workMinutes.disabled = !showDurationGroup;
+    elements.workMinutesPart.disabled = !showDurationGroup;
+    elements.workSecondsPart.disabled = !showDurationGroup;
+
+    elements.restField.hidden = !showRestField;
+    elements.restField.style.display = showRestField ? 'grid' : 'none';
+    elements.restMinutes.disabled = !showRestField;
+    elements.restMinutesPart.disabled = !showRestField;
+    elements.restSecondsPart.disabled = !showRestField;
+
+    elements.repsField.hidden = !showRepsField;
+    elements.repsField.style.display = showRepsField ? 'grid' : 'none';
+    elements.repsPerExercise.disabled = !showRepsField;
 
     elements.intensityField.hidden = false;
-    elements.intensityField.style.display = '';
+    elements.intensityField.style.display = 'grid';
     elements.intensity4pis.disabled = false;
 
-    elements.restField.hidden = !isIntervalado;
-    elements.restField.style.display = isIntervalado ? '' : 'none';
-    elements.restMinutes.disabled = !isIntervalado;
-
-    if (isIntervalado) {
-      if (!String(elements.workMinutes.value || '').trim()) elements.workMinutes.value = '2';
-      if (!String(elements.restMinutes.value || '').trim()) elements.restMinutes.value = '2';
-      if (!String(elements.intensity4pis.value || '').trim()) elements.intensity4pis.value = '3';
+    if (showDurationGroup && !String(elements.workMinutes.value || '').trim()) {
+      elements.workMinutes.value = '2';
+    }
+    if (showRestField && !String(elements.restMinutes.value || '').trim()) {
+      elements.restMinutes.value = '2';
+    }
+    if (showRepsField && !String(elements.repsPerExercise.value || '').trim()) {
+      elements.repsPerExercise.value = '5';
+    }
+    if (!String(elements.intensity4pis.value || '').trim()) {
+      elements.intensity4pis.value = '3';
     }
 
-    elements.workLabel.textContent = isIntervalado ? 'Tempo por exercicio' : 'Tempo maximo por serie';
+    const repsLabel = elements.repsField?.querySelector('span');
+    if (repsLabel) {
+      repsLabel.textContent = isMobilityReps ? 'Repetições por movimento' : 'Repetições por exercício';
+    }
+
+    if (elements.workClusterLabel) {
+      elements.workClusterLabel.textContent = isIntervalado
+        ? 'Estímulo'
+        : isMobilityTime
+          ? 'Tempo por movimento'
+          : 'Tempo máximo por série';
+    }
+    if (elements.restClusterLabel) {
+      elements.restClusterLabel.textContent = 'Recuperação';
+    }
+
+    if (elements.durationGroupLabel) {
+      elements.durationGroupLabel.textContent = isIntervalado
+        ? 'Estímulo / Recuperação'
+        : isMobilityTime
+          ? 'Tempo por movimento'
+          : 'Tempo máximo por série';
+    }
+
     elements.modeHint.textContent = isIntervalado
-      ? 'No modo intervalado, o treino e configurado por tempo de estimulo, intensidade 4PIS e recuperacao. O RER e calculado automaticamente.'
-      : 'No modo ROT, o treino e configurado por repeticoes por exercicio, intensidade 4PIS e tempo maximo da serie inteira.';
+      ? 'No modo intervalado, o treino é configurado por estímulo, recuperação e escala 4PIS.'
+      : isMobilityTime
+        ? 'No modo MOBILITY TIME, o treino é configurado por tempo por movimento, escala 4PIS e número de séries.'
+        : isMobilityReps
+          ? 'No modo MOBILITY REPs, o treino é configurado por repetições por movimento, escala 4PIS e número de séries, sem variável de tempo.'
+          : 'No modo ROT, o treino é configurado por repetições por exercício, escala 4PIS e tempo máximo da série.';
+
+    syncAllDurationInputsFromModel();
   };
 
   renderSelectedList = function (mode, workMinutes, restMinutes, blockMinutes, repsPerExercise) {
@@ -2406,8 +2632,8 @@
           <div class="session-preview-copy">
             <span class="pill">Selecao ${index + 1}</span>
             <strong>${escapeHtml(item.exercise.movement)}</strong>
-            <span>${mode === 'intervalado' ? `${formatMinutes(workMinutes)} de estimulo | ${format4PisLabel(intensity4pis)}` : `${repsPerExercise} reps por exercicio | ${format4PisLabel(intensity4pis)}`}</span>
-            <span>${mode === 'intervalado' ? `${formatMinutes(restMinutes)} de recuperacao | RER ${formatRerLabel(workMinutes, restMinutes)}` : `Serie completa em ate ${formatMinutes(workMinutes)}`}</span>
+            <span>${getPreviewPrimaryLine(mode, workMinutes, restMinutes, repsPerExercise, intensity4pis)}</span>
+            <span>${getPreviewSecondaryLine(mode, workMinutes, restMinutes)}</span>
             <span>${escapeHtml(shorten(item.exercise.description || 'Sem descricao cadastrada.', 120))}</span>
           </div>
         </article>
@@ -2426,19 +2652,19 @@
             <img class="program-logo" src="${LOGO_PATH}" alt="Logo sUrFPE Tech">
           </div>
           <div class="program-sheet-meta">
-            <strong>${formatMinutes(totalMinutes)}</strong>
-            <span>${state.selectedItems.length} exercicios</span>
-            <span>${seriesCount} series | ${mode === 'intervalado' ? 'Intervalado' : 'ROT'}</span>
+            <strong>${formatSessionTotal(mode, totalMinutes)}</strong>
+            <span>${state.selectedItems.length} ${isMobilityMode(mode) ? 'movimentos' : 'exercicios'}</span>
+            <span>${seriesCount} series | ${getModeLabel(mode)}</span>
           </div>
         </header>
         <div class="program-strip">
           <strong>${seriesCount} serie${seriesCount === 1 ? '' : 's'}</strong>
           <span>|</span>
-          <strong>${state.selectedItems.length} exercicios por serie</strong>
+          <strong>${state.selectedItems.length} ${isMobilityMode(mode) ? 'movimentos' : 'exercicios'} por serie</strong>
           <span>|</span>
-          <strong>${formatMinutes(roundMinutes)} por serie</strong>
+          <strong>${mode === 'mobility_reps' ? 'Tempo nao aplicavel' : `${formatMinutes(roundMinutes)} por serie`}</strong>
           <span>|</span>
-          <strong>Total ${formatMinutes(totalMinutes)}</strong>
+          <strong>Total ${formatSessionTotal(mode, totalMinutes)}</strong>
         </div>
         ${mode === 'intervalado' ? `
           <div class="program-emphasis-line">
@@ -2447,7 +2673,7 @@
           </div>
         ` : `
           <div class="program-emphasis-line">
-            <strong>Intensidade</strong>
+            <strong>${escapeHtml(mode === 'mobility_reps' ? 'Intensidade e Mobilidade' : 'Intensidade')}</strong>
             <span>${escapeHtml(format4PisLabel(intensity4pis))}</span>
           </div>
         `}
@@ -2476,18 +2702,16 @@
 
   function refreshEnhancedSessionSummary() {
     const mode = getSessionMode();
-    const workMinutes = getNumber(elements.workMinutes.value);
-    const restMinutes = mode === 'intervalado' ? getNumber(elements.restMinutes.value) : 0;
+    const workMinutes = modeUsesWork(mode) ? getNumber(elements.workMinutes.value) : 0;
+    const restMinutes = modeUsesRest(mode) ? getNumber(elements.restMinutes.value) : 0;
     const seriesCount = Math.max(1, Math.floor(getNumber(elements.seriesCount.value) || 1));
-    const repsPerExercise = mode === 'rot' ? Math.max(1, Math.floor(getNumber(elements.repsPerExercise.value) || 0)) : 0;
+    const repsPerExercise = modeUsesReps(mode) ? Math.max(1, Math.floor(getNumber(elements.repsPerExercise.value) || 0)) : 0;
     const intensity4pis = getIntensity4pisValue();
 
     elements.sessionHeadline.textContent = state.selectedItems.length
       ? getSessionExpression(mode, state.selectedItems.length, seriesCount, workMinutes, restMinutes, repsPerExercise, intensity4pis)
       : 'Nenhum exercicio selecionado';
-    elements.sessionRatio.textContent = mode === 'intervalado'
-      ? `RER ${formatRerLabel(workMinutes, restMinutes)} | ${format4PisLabel(intensity4pis)}`
-      : `${format4PisLabel(intensity4pis)} | Treino ROT configurado por repeticoes por exercicio e tempo maximo por serie.`;
+    elements.sessionRatio.textContent = getSummaryRatioText(mode, workMinutes, restMinutes, repsPerExercise, intensity4pis);
   }
 
   function getSessionActivityTimestamp(session) {
@@ -2579,9 +2803,7 @@
       .map((item, index) => {
         const imageUrl = item.exercise.image?.path ? normalizeAssetUrl(item.exercise.image.path) : '';
         const description = shorten(item.exercise.description || 'Sem descricao cadastrada.', 140);
-        const detailsLine = mode === 'intervalado'
-          ? `${formatMinutes(workMinutes)} de estimulo | ${format4PisLabel(intensity4pis)} | ${formatMinutes(restMinutes)} de recuperacao`
-          : `${repsPerExercise} reps por exercicio | ${format4PisLabel(intensity4pis)} | serie completa em ate ${formatMinutes(workMinutes)}`;
+        const detailsLine = getPdfDetailsLine(mode, workMinutes, restMinutes, repsPerExercise, intensity4pis);
 
         return `
           <article class="pdf-exercise">
@@ -2591,17 +2813,15 @@
               <strong class="pdf-exercise-name">${escapeHtml(item.exercise.movement)}</strong>
               <span class="pdf-muted">${escapeHtml(description)}</span>
               <span class="pdf-muted">${escapeHtml(`Implemento: ${item.exercise.implement || 'Nao informado'}`)}</span>
-              <span class="pdf-muted">${escapeHtml(mode === 'intervalado' ? `${detailsLine} | RER ${formatRerLabel(workMinutes, restMinutes)}` : detailsLine)}</span>
+              <span class="pdf-muted">${escapeHtml(detailsLine)}</span>
             </div>
           </article>
         `;
       })
       .join('');
 
-    const thirdMetaTitle = mode === 'intervalado' ? 'RER e 4PIS' : '4PIS e series';
-    const thirdMetaValue = mode === 'intervalado'
-      ? `${formatRerLabel(workMinutes, restMinutes)} | ${format4PisLabel(intensity4pis)}`
-      : `${format4PisLabel(intensity4pis)} | ${state.selectedItems.length} x ${seriesCount}`;
+    const thirdMetaTitle = mode === 'intervalado' ? 'RER e 4PIS' : isMobilityMode(mode) ? '4PIS e mobilidade' : '4PIS e series';
+    const thirdMetaValue = getPdfThirdMetaValue(mode, workMinutes, restMinutes, seriesCount, intensity4pis);
 
     return `
       <section class="pdf-sheet">
@@ -2615,8 +2835,8 @@
             <img class="pdf-logo" src="${logoUrl}" alt="Logo sUrFPE Tech">
           </div>
           <div class="pdf-meta">
-            <article class="pdf-meta-card"><span>Modo</span><strong>${mode === 'intervalado' ? 'Intervalado' : 'ROT'}</strong></article>
-            <article class="pdf-meta-card"><span>Tempo total</span><strong>${formatMinutes(totalMinutes)}</strong></article>
+            <article class="pdf-meta-card"><span>Modo</span><strong>${escapeHtml(getModeLabel(mode))}</strong></article>
+            <article class="pdf-meta-card"><span>Tempo total</span><strong>${formatSessionTotal(mode, totalMinutes)}</strong></article>
             <article class="pdf-meta-card"><span>${thirdMetaTitle}</span><strong>${escapeHtml(thirdMetaValue)}</strong></article>
           </div>
         </header>
@@ -2646,18 +2866,18 @@
     }
 
     const mode = getSessionMode();
-    const workMinutes = getNumber(elements.workMinutes.value);
-    const restMinutes = mode === 'intervalado' ? getNumber(elements.restMinutes.value) : 0;
+    const workMinutes = modeUsesWork(mode) ? getNumber(elements.workMinutes.value) : 0;
+    const restMinutes = modeUsesRest(mode) ? getNumber(elements.restMinutes.value) : 0;
     const seriesCount = Math.max(1, Math.floor(getNumber(elements.seriesCount.value) || 1));
-    const repsPerExercise = mode === 'rot' ? Math.max(1, Math.floor(getNumber(elements.repsPerExercise.value) || 0)) : 0;
+    const repsPerExercise = modeUsesReps(mode) ? Math.max(1, Math.floor(getNumber(elements.repsPerExercise.value) || 0)) : 0;
 
-    if (workMinutes <= 0) {
+    if (modeUsesWork(mode) && workMinutes <= 0) {
       alert('Informe um tempo maior que zero para exportar a sessao.');
       return;
     }
 
-    if (mode === 'rot' && repsPerExercise <= 0) {
-      alert('Informe o numero de repeticoes por exercicio para exportar em modo ROT.');
+    if (modeUsesReps(mode) && repsPerExercise <= 0) {
+      alert(`Informe o numero de repeticoes por ${isMobilityMode(mode) ? 'movimento' : 'exercicio'} para exportar em ${getModeLabel(mode)}.`);
       return;
     }
 
@@ -2725,19 +2945,19 @@
     }
 
     const mode = getSessionMode();
-    const workMinutes = getNumber(elements.workMinutes.value);
-    const restMinutes = mode === 'intervalado' ? getNumber(elements.restMinutes.value) : 0;
+    const workMinutes = modeUsesWork(mode) ? getNumber(elements.workMinutes.value) : 0;
+    const restMinutes = modeUsesRest(mode) ? getNumber(elements.restMinutes.value) : 0;
     const seriesCount = Math.max(1, Math.floor(getNumber(elements.seriesCount.value) || 1));
-    const repsPerExercise = mode === 'rot' ? Math.max(1, Math.floor(getNumber(elements.repsPerExercise.value) || 0)) : 0;
+    const repsPerExercise = modeUsesReps(mode) ? Math.max(1, Math.floor(getNumber(elements.repsPerExercise.value) || 0)) : 0;
     const intensity4pis = getIntensity4pisValue();
 
-    if (workMinutes <= 0) {
+    if (modeUsesWork(mode) && workMinutes <= 0) {
       alert('Informe um tempo maior que zero para exportar a sessao.');
       return;
     }
 
-    if (mode === 'rot' && repsPerExercise <= 0) {
-      alert('Informe o numero de repeticoes por exercicio para exportar em modo ROT.');
+    if (modeUsesReps(mode) && repsPerExercise <= 0) {
+      alert(`Informe o numero de repeticoes por ${isMobilityMode(mode) ? 'movimento' : 'exercicio'} para exportar em ${getModeLabel(mode)}.`);
       return;
     }
 
@@ -2899,6 +3119,162 @@
         <p>CREF/Matricula: ${escapeHtml(crefLabel)}</p>
       </section>
     `;
+  }
+
+  function normalizeSportValenceKey(value) {
+    const normalized = String(value ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z]/g, '');
+
+    const aliases = {
+      strengthendurance: 'strengthEndurance',
+      forcaresistenteoupura: 'strengthEndurance',
+      forcaresistente: 'strengthEndurance',
+      forcapura: 'strengthEndurance',
+      forcaspura: 'strengthEndurance',
+      explosivestrength: 'explosiveStrength',
+      forcaexplosiva: 'explosiveStrength',
+      mobility: 'mobility',
+      mobilidade: 'mobility',
+      balance: 'balance',
+      equilibrio: 'balance',
+      landing: 'landing',
+      aerobic: 'aerobic',
+      aerobio: 'aerobic',
+      speed: 'speed',
+      velocidade: 'speed',
+      agility: 'agility',
+      agilidade: 'agility'
+    };
+
+    return aliases[normalized] || '';
+  }
+
+  function normalizeText(value) {
+    return String(value ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toLowerCase();
+  }
+
+  function normalizeSportValences(values) {
+    const items = Array.isArray(values)
+      ? values
+      : String(values || '')
+        .split(/[|,;/]+/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+    const normalized = items
+      .map((value) => normalizeSportValenceKey(value))
+      .filter(Boolean);
+
+    return normalized.length ? [...new Set(normalized)] : ['strengthEndurance'];
+  }
+
+  function isMobilityMode(mode) {
+    return mode === 'mobility_reps' || mode === 'mobility_time';
+  }
+
+  function modeUsesWork(mode) {
+    return mode === 'intervalado' || mode === 'rot' || mode === 'mobility_time';
+  }
+
+  function modeUsesRest(mode) {
+    return mode === 'intervalado';
+  }
+
+  function modeUsesReps(mode) {
+    return mode === 'rot' || mode === 'mobility_reps';
+  }
+
+  function formatSessionTotal(mode, totalMinutes) {
+    return mode === 'mobility_reps' ? 'N/A' : formatMinutes(totalMinutes);
+  }
+
+  function getSummaryRatioText(mode, workMinutes, restMinutes, repsPerExercise, intensity4pis) {
+    if (mode === 'intervalado') {
+      return `RER ${formatRerLabel(workMinutes, restMinutes)} | ${format4PisLabel(intensity4pis)}`;
+    }
+    if (mode === 'mobility_reps') {
+      return `${format4PisLabel(intensity4pis)} | ${repsPerExercise} reps por movimento.`;
+    }
+    if (mode === 'mobility_time') {
+      return `${format4PisLabel(intensity4pis)} | ${formatMinutes(workMinutes)} por movimento.`;
+    }
+    return `${format4PisLabel(intensity4pis)} | Treino ROT configurado por repeticoes por exercicio e tempo maximo por serie.`;
+  }
+
+  function getPreviewPrimaryLine(mode, workMinutes, restMinutes, repsPerExercise, intensity4pis) {
+    if (mode === 'intervalado') {
+      return `${formatMinutes(workMinutes)} de estimulo | ${format4PisLabel(intensity4pis)}`;
+    }
+    if (mode === 'mobility_reps') {
+      return `${repsPerExercise} reps por movimento | ${format4PisLabel(intensity4pis)}`;
+    }
+    if (mode === 'mobility_time') {
+      return `${formatMinutes(workMinutes)} por movimento | ${format4PisLabel(intensity4pis)}`;
+    }
+    return `${repsPerExercise} reps por exercicio | ${format4PisLabel(intensity4pis)}`;
+  }
+
+  function getPreviewSecondaryLine(mode, workMinutes, restMinutes) {
+    if (mode === 'intervalado') {
+      return `${formatMinutes(restMinutes)} de recuperacao | RER ${formatRerLabel(workMinutes, restMinutes)}`;
+    }
+    if (mode === 'mobility_reps') {
+      return 'Sem variavel de tempo neste modo';
+    }
+    if (mode === 'mobility_time') {
+      return 'Tempo aplicado individualmente em cada movimento';
+    }
+    return `Serie completa em ate ${formatMinutes(workMinutes)}`;
+  }
+
+  function getPdfDetailsLine(mode, workMinutes, restMinutes, repsPerExercise, intensity4pis) {
+    if (mode === 'intervalado') {
+      return `${formatMinutes(workMinutes)} de estimulo | ${format4PisLabel(intensity4pis)} | ${formatMinutes(restMinutes)} de recuperacao | RER ${formatRerLabel(workMinutes, restMinutes)}`;
+    }
+    if (mode === 'mobility_reps') {
+      return `${repsPerExercise} reps por movimento | ${format4PisLabel(intensity4pis)}`;
+    }
+    if (mode === 'mobility_time') {
+      return `${formatMinutes(workMinutes)} por movimento | ${format4PisLabel(intensity4pis)}`;
+    }
+    return `${repsPerExercise} reps por exercicio | ${format4PisLabel(intensity4pis)} | serie completa em ate ${formatMinutes(workMinutes)}`;
+  }
+
+  function getPdfThirdMetaValue(mode, workMinutes, restMinutes, seriesCount, intensity4pis) {
+    if (mode === 'intervalado') {
+      return `${formatRerLabel(workMinutes, restMinutes)} | ${format4PisLabel(intensity4pis)}`;
+    }
+    if (mode === 'mobility_reps') {
+      return `${format4PisLabel(intensity4pis)} | ${state.selectedItems.length} x ${seriesCount}`;
+    }
+    if (mode === 'mobility_time') {
+      return `${format4PisLabel(intensity4pis)} | ${formatMinutes(workMinutes)} por movimento`;
+    }
+    return `${format4PisLabel(intensity4pis)} | ${state.selectedItems.length} x ${seriesCount}`;
+  }
+
+  function setSessionFeedback(message) {
+    if (!elements.sessionFeedback) return;
+    elements.sessionFeedback.textContent = String(message || '');
+  }
+
+  function clearSessionFeedback() {
+    setSessionFeedback('');
+  }
+
+  function setSessionBusy(isBusy) {
+    if (elements.saveSessionButton) {
+      elements.saveSessionButton.disabled = Boolean(isBusy);
+      elements.saveSessionButton.textContent = isBusy ? 'Gravando sessão...' : 'Finalizar e gravar sessão';
+    }
   }
 
   bindEnhancedUi = function () {
