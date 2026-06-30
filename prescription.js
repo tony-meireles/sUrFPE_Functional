@@ -168,18 +168,27 @@
 
   function deriveSportValences(exercise) {
     const valences = normalizeSportValences(exercise?.sportValences);
-    if (!shouldClassifyAsMobility(exercise)) return valences;
+    const derivedValences = valences.filter((value) => value !== 'strengthEndurance');
 
-    const withoutDefaultStrength = valences.filter((value) => value !== 'strengthEndurance');
-    return withoutDefaultStrength.includes('mobility')
-      ? withoutDefaultStrength
-      : [...withoutDefaultStrength, 'mobility'];
+    if (shouldClassifyAsMobility(exercise) && !derivedValences.includes('mobility')) {
+      derivedValences.push('mobility');
+    }
+
+    if (shouldClassifyAsBalance(exercise) && !derivedValences.includes('balance')) {
+      derivedValences.push('balance');
+    }
+
+    return derivedValences.length ? derivedValences : ['strengthEndurance'];
   }
 
   function shouldClassifyAsMobility(exercise) {
     const sourceSheet = normalizeText(exercise?.source?.sheet);
     const tags = Array.isArray(exercise?.tags) ? exercise.tags.map((tag) => normalizeText(tag)) : [];
     return sourceSheet.includes('mobilidade') || tags.includes('mobilidade');
+  }
+
+  function shouldClassifyAsBalance(exercise) {
+    return Number(exercise?.scores?.balance || 0) > 0;
   }
 
   function buildExerciseTags(exercise) {
