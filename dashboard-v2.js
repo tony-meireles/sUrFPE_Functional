@@ -3,6 +3,7 @@
   const STORAGE_KEY = 'surfpe.exerciseRepository.v1';
   const SESSION_STORAGE_KEY = 'surfpe.trainingSessions.v1';
   const LOGO_PATH = 'assets/branding/logo-surfpe-tech.png';
+  const MOBILITY_REP_DURATION_SECONDS = 4;
   const usage = window.SURFPE_USAGE || null;
   const auth = window.SURFPE_AUTH || null;
   const currentPage = document.body?.dataset.page || 'dashboard';
@@ -89,7 +90,12 @@
     const saved = localStorage.getItem(SESSION_STORAGE_KEY);
     if (!saved) return [];
     try {
-      return JSON.parse(saved);
+      const parsedSessions = JSON.parse(saved);
+      const normalizedSessions = parsedSessions.map((session) => normalizeSessionTimingData(session));
+      if (JSON.stringify(parsedSessions) !== JSON.stringify(normalizedSessions)) {
+        localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(normalizedSessions));
+      }
+      return normalizedSessions;
     } catch (error) {
       console.warn('Falha ao restaurar treinos criados.', error);
       return [];
@@ -232,7 +238,7 @@
     return items.filter((session) => {
       const createdAt = session.createdAt ? new Date(session.createdAt) : null;
       const normalizedName = String(session.name || '').toLowerCase();
-      const totalMinutes = Number(session.totalMinutes || 0);
+      const totalMinutes = getSessionTotalMinutes(session);
       if (filters.search && !normalizedName.includes(filters.search)) return false;
       if (dateFrom && (!createdAt || createdAt < dateFrom)) return false;
       if (dateTo && (!createdAt || createdAt > dateTo)) return false;
@@ -276,7 +282,40 @@
   }
 
   function formatSessionTotal(session) {
-    return session?.mode === 'mobility_reps' ? 'N/A' : formatMinutes(session?.totalMinutes || 0);
+    return formatMinutes(getSessionTotalMinutes(session));
+  }
+
+  function getRoundMinutes(mode, workMinutes, restMinutes, exerciseCount, repsPerExercise = 0) {
+    if (mode === 'intervalado') {
+      return Math.max(0, Number(exerciseCount || 0)) * (Number(workMinutes || 0) + Number(restMinutes || 0));
+    }
+    if (mode === 'mobility_time') {
+      return Math.max(0, Number(exerciseCount || 0)) * Number(workMinutes || 0);
+    }
+    if (mode === 'mobility_reps') {
+      return Math.max(0, Number(exerciseCount || 0)) * Math.max(0, Number(repsPerExercise || 0)) * (MOBILITY_REP_DURATION_SECONDS / 60);
+    }
+    return Number(workMinutes || 0);
+  }
+
+  function getSessionTotalMinutes(session) {
+    const safeSession = session || {};
+    const exerciseCount = Number(safeSession.exercises?.length || 0);
+    const mode = safeSession.mode || 'intervalado';
+    const workMinutes = Number(safeSession.workMinutes || 0);
+    const restMinutes = Number(safeSession.restMinutes || 0);
+    const repsPerExercise = Number(safeSession.repsPerExercise || 0);
+    const seriesCount = Math.max(1, Number(safeSession.seriesCount || 1));
+    const roundMinutes = getRoundMinutes(mode, workMinutes, restMinutes, exerciseCount, repsPerExercise);
+    return roundMinutes * seriesCount;
+  }
+
+  function normalizeSessionTimingData(session) {
+    if (!session || typeof session !== 'object') return session;
+    return {
+      ...session,
+      totalMinutes: getSessionTotalMinutes(session)
+    };
   }
 
   function format4PisLabel(value) {
@@ -798,7 +837,7 @@
       source: 'dashboard',
       mode: session.mode || 'intervalado',
       exercises: Number(session.exercises?.length || 0),
-      totalMinutes: Number(session.totalMinutes || 0)
+      totalMinutes: getSessionTotalMinutes(session)
     });
     printHtmlAsPdf(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>${escapeHtml(exportBaseName)}</title>${styleHtml}</head><body>${previewHtml}</body></html>`);
   }
@@ -813,7 +852,11 @@
         const description = shorten(exercise.description || 'Sem descricao cadastrada.', 140);
         const detailsLine = mode === 'intervalado'
           ? `${formatMinutes(session.workMinutes || 0)} de estimulo | ${format4PisLabel(session.intensity4pis || '0')} | ${formatMinutes(session.restMinutes || 0)} de recuperacao | RER ${formatRerLabel(session.workMinutes || 0, session.restMinutes || 0)}`
-          : `${session.repsPerExercise || 0} reps por exercicio | ${format4PisLabel(session.intensity4pis || '0')} | serie completa em ate ${formatMinutes(session.workMinutes || 0)}`;
+          : mode === 'mobility_time'
+            ? `${formatMinutes(session.workMinutes || 0)} por movimento | ${format4PisLabel(session.intensity4pis || '0')}`
+            : mode === 'mobility_reps'
+              ? `${session.repsPerExercise || 0} reps por movimento | ${format4PisLabel(session.intensity4pis || '0')} | 4 s por repeticao`
+              : `${session.repsPerExercise || 0} reps por exercicio | ${format4PisLabel(session.intensity4pis || '0')} | serie completa em ate ${formatMinutes(session.workMinutes || 0)}`;
 
         return `
           <article class="pdf-exercise">
@@ -830,10 +873,14 @@
       })
       .join('');
 
-    const thirdMetaTitle = mode === 'intervalado' ? 'RER e 4PIS' : '4PIS e series';
+    const thirdMetaTitle = mode === 'intervalado' ? 'RER e 4PIS' : mode === 'mobility_time' ? '4PIS e movimento' : '4PIS e series';
     const thirdMetaValue = mode === 'intervalado'
       ? `${formatRerLabel(session.workMinutes || 0, session.restMinutes || 0)} | ${format4PisLabel(session.intensity4pis || '0')}`
-      : `${format4PisLabel(session.intensity4pis || '0')} | ${Number(session.exercises?.length || 0)} x ${Number(session.seriesCount || 1)}`;
+      : mode === 'mobility_time'
+        ? `${format4PisLabel(session.intensity4pis || '0')} | ${formatMinutes(session.workMinutes || 0)} por movimento`
+        : mode === 'mobility_reps'
+          ? `${format4PisLabel(session.intensity4pis || '0')} | 4 s por repeticao`
+          : `${format4PisLabel(session.intensity4pis || '0')} | ${Number(session.exercises?.length || 0)} x ${Number(session.seriesCount || 1)}`;
 
     return `
       <section class="pdf-sheet">

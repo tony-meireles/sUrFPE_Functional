@@ -7,6 +7,7 @@
   const SESSION_STORAGE_KEY = 'surfpe.trainingSessions.v1';
   const PAGE_SIZE = 12;
   const LOGO_PATH = 'assets/branding/logo-surfpe-tech.png';
+  const MOBILITY_REP_DURATION_SECONDS = 4;
 
   const labels = {
     scoreKeys: {
@@ -146,7 +147,12 @@
     if (!saved) return [];
 
     try {
-      return JSON.parse(saved);
+      const parsedSessions = JSON.parse(saved);
+      const normalizedSessions = parsedSessions.map((session) => normalizeSessionTimingData(session));
+      if (JSON.stringify(parsedSessions) !== JSON.stringify(normalizedSessions)) {
+        localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(normalizedSessions));
+      }
+      return normalizedSessions;
     } catch (error) {
       console.warn('Falha ao restaurar sessões salvas.', error);
       return [];
@@ -328,7 +334,7 @@
     const seriesCount = Math.max(1, Math.floor(getNumber(elements.seriesCount.value) || 1));
     const repsPerExercise = modeUsesReps(mode) ? Math.max(1, Math.floor(getNumber(elements.repsPerExercise.value) || 0)) : 0;
     const blockMinutes = mode === 'intervalado' ? workMinutes + restMinutes : workMinutes;
-    const roundMinutes = state.selectedItems.length === 0 ? 0 : getRoundMinutes(mode, workMinutes, restMinutes, state.selectedItems.length);
+    const roundMinutes = state.selectedItems.length === 0 ? 0 : getRoundMinutes(mode, workMinutes, restMinutes, state.selectedItems.length, repsPerExercise);
     const totalMinutes = roundMinutes * seriesCount;
     const sessionName = elements.sessionName.value.trim();
     const emphasis = summarizeSessionEmphasis(state.selectedItems.map((item) => item.exercise));
@@ -1464,9 +1470,7 @@
         return;
       }
 
-      const roundMinutes = mode === 'intervalado'
-        ? state.selectedItems.length * (workMinutes + restMinutes)
-        : workMinutes;
+      const roundMinutes = getRoundMinutes(mode, workMinutes, restMinutes, state.selectedItems.length, repsPerExercise);
       const totalMinutes = roundMinutes * seriesCount;
       const fullExercises = state.selectedItems.map((item) => normalizeExerciseData(item.exercise));
       const emphasis = summarizeSessionEmphasis(fullExercises);
@@ -2424,7 +2428,7 @@
     return `1 : ${formatRatioValue(Number(restMinutes || 0) / safeWork)}`;
   }
 
-  function getRoundMinutes(mode, workMinutes, restMinutes, exerciseCount) {
+  function getRoundMinutes(mode, workMinutes, restMinutes, exerciseCount, repsPerExercise = 0) {
     if (mode === 'intervalado') {
       return Math.max(0, Number(exerciseCount || 0)) * (Number(workMinutes || 0) + Number(restMinutes || 0));
     }
@@ -2432,7 +2436,7 @@
       return Math.max(0, Number(exerciseCount || 0)) * Number(workMinutes || 0);
     }
     if (mode === 'mobility_reps') {
-      return 0;
+      return Math.max(0, Number(exerciseCount || 0)) * Math.max(0, Number(repsPerExercise || 0)) * (MOBILITY_REP_DURATION_SECONDS / 60);
     }
     return Number(workMinutes || 0);
   }
@@ -2574,7 +2578,7 @@
       : isMobilityTime
         ? 'No modo MOBILITY TIME, o treino é configurado por tempo por movimento, escala 4PIS e número de séries.'
         : isMobilityReps
-          ? 'No modo MOBILITY REPs, o treino é configurado por repetições por movimento, escala 4PIS e número de séries, sem variável de tempo.'
+          ? 'No modo MOBILITY REPs, o treino é configurado por repetições por movimento, escala 4PIS e número de séries, com estimativa de 4 segundos por repetição.'
           : 'No modo ROT, o treino é configurado por repetições por exercício, escala 4PIS e tempo máximo da série.';
 
     syncAllDurationInputsFromModel();
@@ -2662,7 +2666,7 @@
           <span>|</span>
           <strong>${state.selectedItems.length} ${isMobilityMode(mode) ? 'movimentos' : 'exercicios'} por serie</strong>
           <span>|</span>
-          <strong>${mode === 'mobility_reps' ? 'Tempo nao aplicavel' : `${formatMinutes(roundMinutes)} por serie`}</strong>
+          <strong>${formatMinutes(roundMinutes)} por serie</strong>
           <span>|</span>
           <strong>Total ${formatSessionTotal(mode, totalMinutes)}</strong>
         </div>
@@ -2881,7 +2885,7 @@
       return;
     }
 
-    const roundMinutes = getRoundMinutes(mode, workMinutes, restMinutes, state.selectedItems.length);
+    const roundMinutes = getRoundMinutes(mode, workMinutes, restMinutes, state.selectedItems.length, repsPerExercise);
     const totalMinutes = roundMinutes * seriesCount;
     const emphasis = summarizeSessionEmphasis(state.selectedItems.map((item) => item.exercise));
     const sessionName = elements.sessionName.value.trim() || 'Sessao de treinamento';
@@ -2962,7 +2966,7 @@
     }
 
     const sessionName = elements.sessionName.value.trim() || 'Sessao de treinamento';
-    const roundMinutes = getRoundMinutes(mode, workMinutes, restMinutes, state.selectedItems.length);
+    const roundMinutes = getRoundMinutes(mode, workMinutes, restMinutes, state.selectedItems.length, repsPerExercise);
     const totalMinutes = roundMinutes * seriesCount;
     const emphasis = summarizeSessionEmphasis(state.selectedItems.map((item) => item.exercise));
     const width = 1400;
@@ -3193,7 +3197,7 @@
   }
 
   function formatSessionTotal(mode, totalMinutes) {
-    return mode === 'mobility_reps' ? 'N/A' : formatMinutes(totalMinutes);
+    return formatMinutes(totalMinutes);
   }
 
   function getSummaryRatioText(mode, workMinutes, restMinutes, repsPerExercise, intensity4pis) {
@@ -3201,7 +3205,7 @@
       return `RER ${formatRerLabel(workMinutes, restMinutes)} | ${format4PisLabel(intensity4pis)}`;
     }
     if (mode === 'mobility_reps') {
-      return `${format4PisLabel(intensity4pis)} | ${repsPerExercise} reps por movimento.`;
+      return `${format4PisLabel(intensity4pis)} | ${repsPerExercise} reps por movimento | 4 s por repeticao.`;
     }
     if (mode === 'mobility_time') {
       return `${format4PisLabel(intensity4pis)} | ${formatMinutes(workMinutes)} por movimento.`;
@@ -3227,7 +3231,7 @@
       return `${formatMinutes(restMinutes)} de recuperacao | RER ${formatRerLabel(workMinutes, restMinutes)}`;
     }
     if (mode === 'mobility_reps') {
-      return 'Sem variavel de tempo neste modo';
+      return 'Estimativa de 4 s por repeticao.';
     }
     if (mode === 'mobility_time') {
       return 'Tempo aplicado individualmente em cada movimento';
@@ -3240,7 +3244,7 @@
       return `${formatMinutes(workMinutes)} de estimulo | ${format4PisLabel(intensity4pis)} | ${formatMinutes(restMinutes)} de recuperacao | RER ${formatRerLabel(workMinutes, restMinutes)}`;
     }
     if (mode === 'mobility_reps') {
-      return `${repsPerExercise} reps por movimento | ${format4PisLabel(intensity4pis)}`;
+      return `${repsPerExercise} reps por movimento | ${format4PisLabel(intensity4pis)} | 4 s por repeticao`;
     }
     if (mode === 'mobility_time') {
       return `${formatMinutes(workMinutes)} por movimento | ${format4PisLabel(intensity4pis)}`;
@@ -3253,12 +3257,32 @@
       return `${formatRerLabel(workMinutes, restMinutes)} | ${format4PisLabel(intensity4pis)}`;
     }
     if (mode === 'mobility_reps') {
-      return `${format4PisLabel(intensity4pis)} | ${state.selectedItems.length} x ${seriesCount}`;
+      return `${format4PisLabel(intensity4pis)} | 4 s por repeticao`;
     }
     if (mode === 'mobility_time') {
       return `${format4PisLabel(intensity4pis)} | ${formatMinutes(workMinutes)} por movimento`;
     }
     return `${format4PisLabel(intensity4pis)} | ${state.selectedItems.length} x ${seriesCount}`;
+  }
+
+  function getSessionTotalMinutes(session) {
+    const safeSession = session || {};
+    const exerciseCount = Number(safeSession.exercises?.length || 0);
+    const mode = safeSession.mode || 'intervalado';
+    const workMinutes = Number(safeSession.workMinutes || 0);
+    const restMinutes = Number(safeSession.restMinutes || 0);
+    const repsPerExercise = Number(safeSession.repsPerExercise || 0);
+    const seriesCount = Math.max(1, Number(safeSession.seriesCount || 1));
+    const roundMinutes = getRoundMinutes(mode, workMinutes, restMinutes, exerciseCount, repsPerExercise);
+    return roundMinutes * seriesCount;
+  }
+
+  function normalizeSessionTimingData(session) {
+    if (!session || typeof session !== 'object') return session;
+    return {
+      ...session,
+      totalMinutes: getSessionTotalMinutes(session)
+    };
   }
 
   function setSessionFeedback(message) {
