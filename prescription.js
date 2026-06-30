@@ -14,8 +14,7 @@
       upperBody: 'MMSS',
       lowerBody: 'MMII',
       trunk: 'Tronco',
-      core: 'Core',
-      balance: 'Equilíbrio'
+      core: 'Core'
     },
     foundationKeys: {
       popup: 'Popup',

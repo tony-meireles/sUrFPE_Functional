@@ -9,8 +9,7 @@
       upperBody: 'MMSS',
       lowerBody: 'MMII',
       trunk: 'Tronco',
-      core: 'Core',
-      balance: 'Equilíbrio'
+      core: 'Core'
     },
     foundationKeys: {
       popup: 'Popup',
@@ -340,7 +339,6 @@
         <p class="panel-title">Valência Esportiva</p>
         <div class="card-meta">${normalizeSportValences(exercise.sportValences).map((key) => `<span class="pill">${escapeHtml(labels.sportValenceKeys[key])}</span>`).join('')}</div>
       </div>
-      ${exercise.image?.attribution ? `<p class="credit">Crédito da imagem: ${escapeHtml(exercise.image.attribution)}</p>` : ''}
     `;
   }
 
